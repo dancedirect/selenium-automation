@@ -42,3 +42,9 @@ exports.stringIncludes = (str, searchValue) => {
     
     return searchValue.indexOf(str) > -1
 }
+
+exports.sleep = (ms) => {
+    return new Promise(resolve => {
+        setTimeout(resolve, ms)
+    })
+}
