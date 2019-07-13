@@ -15,6 +15,25 @@ const capabilities = {
  'name': 'Bstack-[Node] Sample Test'
 }
 
+const products = (baseUrl) => [
+    {
+        url: `${baseUrl}/sdbae26-so-danca-mens-professional-split-sole-canvas-upper-stretch-insert.html`,
+        colorSwatchId: 93,
+        colorId: 4,
+        sizeSwatchId: 152,
+        sizeId: 563,
+        qty: 2
+    },
+    {
+        url: `${baseUrl}/bl277m-bloch-pump-men-s-canvas-ballet-shoes.html`,
+        colorSwatchId: 93,
+        colorId: 4,
+        sizeSwatchId: 152,
+        sizeId: 393,
+        qty: 2
+    }
+]
+
 let driver
 
 const onExit = () => {
@@ -25,7 +44,7 @@ const onExit = () => {
 
 const getSwatchElemId = (type, swatchId, colorId) => `option-label-${type}-${swatchId}-item-${colorId}`
 
-const getCounterNumber = async(driver) => {
+const getCartItemCount = async(driver) => {
     try {
         const counter = await driver.findElement(By.css('.counter-number'))
         let counterNum = await counter.getText()
@@ -35,8 +54,10 @@ const getCounterNumber = async(driver) => {
     }
 }
 
+const getBaseUrl = (protocol, targetSite) => `${protocol}:\\\\${targetSite}`
+
 const login = async(driver, httpAuth, protocol, targetSite) => {
-    let baseUrl = homeUrl = `${protocol}:\\\\${targetSite}`
+    let baseUrl = homeUrl = getBaseUrl(protocol, targetSite)
     if (httpAuth) {
         homeUrl = `${protocol}:\\\\${config.env.httpAuthUser}:${config.env.httpAuthPassword}@${targetSite}`
     }
@@ -66,6 +87,19 @@ const login = async(driver, httpAuth, protocol, targetSite) => {
     if (!$.stringIncludes('Dashboard', title)) {
         throw new Error('Login Failed.')
     }
+}
+
+const logout = async(driver) => {
+    const authMenuLink = await driver.findElement(By.css('body > .page-wrapper > .page-header .authorization-link'))
+    await authMenuLink.click()
+
+    const logoutLink = await driver.findElement(By.partialLinkText('Logout'))
+    await logoutLink.click()
+
+    await driver.wait(async() => {
+        let title = await driver.getTitle()
+        return $.stringIncludes('Home', title)
+    }, 60000, undefined, 10000)
 }
 
 const addProductToCart = async(driver, product) => {
@@ -114,11 +148,12 @@ const addProductToCart = async(driver, product) => {
     console.log('Stock QTY:', stockQty)
 
     // Add to cart
-    let currCounterNumber = await getCounterNumber(driver)
-    console.log('CURR Counter:', currCounterNumber)
+    let cartItemCount = await getCartItemCount(driver)
+    console.log('Cart items:', cartItemCount)
 
     if (product.qty <= stockQty) {
-        await driver.findElement(By.id('qty')).clear().sendKeys(`${product.qty}`)
+        await driver.findElement(By.id('qty')).clear()
+        await driver.findElement(By.id('qty')).sendKeys(`${product.qty}`)
         const qty = await driver.findElement(By.id('qty')).getAttribute('value')
         if (parseInt(qty) !== product.qty) {
             throw new Error('The product qty could not be set.')
@@ -132,15 +167,14 @@ const addProductToCart = async(driver, product) => {
 
         await addToCart.submit()
 
-        /* await driver.wait(async(nextDriver) => {
-            let counterNum = await getCounterNumber(nextDriver)
-            console.log(counterNum)
-            return counterNum === currCounterNumber + product.qty 
-        }, 60000, undefined, 10000) */
+        await driver.wait(async(nextDriver) => {
+            const newCartItemCount = await getCartItemCount(nextDriver)
+            return newCartItemCount === cartItemCount + product.qty 
+        }, 20000, undefined, 1000)
     }
 
-    const finalCounterNumber = await getCounterNumber(driver)
-    console.log('FINAL Counter:', finalCounterNumber)
+    cartItemCount = await getCartItemCount(driver)
+    console.log('Cart items:', cartItemCount)
 }
 
 const run = async(argv) => {
@@ -156,31 +190,14 @@ const run = async(argv) => {
 
     await login(driver, httpAuth, protocol, targetSite)
 
-    let baseUrl = `${protocol}:\\\\${targetSite}`
+    let baseUrl = getBaseUrl(protocol, targetSite)
 
     // Add products to basket
-    const products = [
-        {
-            url: `${baseUrl}/sdbae26-so-danca-mens-professional-split-sole-canvas-upper-stretch-insert.html`,
-            colorSwatchId: 93,
-            colorId: 4,
-            sizeSwatchId: 152,
-            sizeId: 563,
-            qty: 2
-        },
-        {
-            url: `${baseUrl}/bl277m-bloch-pump-men-s-canvas-ballet-shoes.html`,
-            colorSwatchId: 93,
-            colorId: 4,
-            sizeSwatchId: 152,
-            sizeId: 393,
-            qty: 2
-        }
-    ]
-
-    await $.asyncForEach(products, async(product) => {
+    await $.asyncForEach(products(baseUrl), async(product) => {
         await addProductToCart(driver, product)
     })
+
+    await logout(driver)
 
     driver.quit()
 }
