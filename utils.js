@@ -21,3 +21,13 @@ exports.asyncForEach = async(array, callback) => {
         await callback(array[index], index, array)
     }
 }
+
+exports.extractNumberFromText = (text) => {
+    text = text.replace( /^\D+/g, '')
+    let num = 0
+    if (text !== '') {
+        num = parseInt(text)
+    }
+
+    return num
+}
