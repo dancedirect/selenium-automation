@@ -1,4 +1,4 @@
-const {Builder, By} = require('selenium-webdriver')
+const {Builder, By, until} = require('selenium-webdriver')
 const _ = require('lodash')
 const config = require('../config')
 const utils = require('../utils')
@@ -32,6 +32,50 @@ const landedInPage = (expectedPageTitle, pageTitle) => {
     }
 
     return pageTitle.indexOf(expectedPageTitle) > -1
+}
+
+const getSwatchElemId = (type, swatchId, colorId) => `option-label-${type}-${swatchId}-item-${colorId}`
+
+const addProductToBasket = async(driver, product) => {
+    await driver.navigate().to(product.url)
+    const title = await driver.getTitle()
+
+    console.log('Product URL:', product.url)
+    console.log('Product:', title)
+
+    // Select the color
+    const colorSwatchElemId = getSwatchElemId('color', product.colorSwatchId, product.colorId)
+    const colorSwatch = await driver.wait(until.elementLocated(By.id(colorSwatchElemId)), 2500)
+    const colorSwatchClassName = await colorSwatch.getAttribute('class')
+    if (colorSwatchClassName.indexOf('selected') < 0) {
+        await colorSwatch.click()
+    }
+    
+    const selectedColorSwatch = await driver.wait(until.elementLocated(By.css('.swatch-attribute.color .selected')), 1000)
+    const selectedColorSwatchID = await selectedColorSwatch.getAttribute('id')
+    if (colorSwatchElemId !== selectedColorSwatchID) {
+        throw new Error(`Product color "${product.colorId}" could not be selected.`)
+    }
+
+    console.log('Color ID:', product.colorId)
+
+    // Select the size
+    const sizeSwatchElemId = getSwatchElemId('size', product.sizeSwatchId, product.sizeId)
+    const sizeSwatch = await driver.findElement(By.id(sizeSwatchElemId))
+    const sizeSwatchClassName = await sizeSwatch.getAttribute('class')
+    if (sizeSwatchClassName.indexOf('selected') < 0) {
+        await sizeSwatch.click()
+    }
+
+    const selectedSizeSwatch = await driver.wait(until.elementLocated(By.css('.swatch-attribute.size .selected')), 1000)
+    const selectedSizeSwatchID = await selectedSizeSwatch.getAttribute('id')
+    if (sizeSwatchElemId !== selectedSizeSwatchID) {
+        throw new Error(`Product size "${product.sizeId}" could not be selected.`)
+    }
+
+    console.log('Size ID:', product.sizeId)
+
+    // Check the quantity
 }
 
 const run = async(argv) => {
@@ -75,6 +119,30 @@ const run = async(argv) => {
     if (!landedInPage('Dashboard', title)) {
         throw new Error('Login Failed.')
     }
+
+    // Add products to basket
+    const products = [
+        {
+            url: `${baseUrl}/sdbae26-so-danca-mens-professional-split-sole-canvas-upper-stretch-insert.html`,
+            colorSwatchId: 93,
+            colorId: 4,
+            sizeSwatchId: 152,
+            sizeId: 563,
+            qty: 2
+        },
+        {
+            url: `${baseUrl}/bl277m-bloch-pump-men-s-canvas-ballet-shoes.html`,
+            colorSwatchId: 93,
+            colorId: 4,
+            sizeSwatchId: 152,
+            sizeId: 393,
+            qty: 2
+        }
+    ]
+
+    await utils.asyncForEach(products, async(product) => {
+        await addProductToBasket(driver, product)
+    })
 
     driver.quit()
 }
