@@ -31,3 +31,14 @@ exports.extractNumberFromText = (text) => {
 
     return num
 }
+
+exports.stringIncludes = (str, searchValue) => {
+    str = (str || '').toLowerCase()
+    searchValue = (searchValue || '').toLowerCase()
+    
+    if (searchValue === str) {
+        return true
+    }
+    
+    return searchValue.indexOf(str) > -1
+}
