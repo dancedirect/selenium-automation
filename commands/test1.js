@@ -1,7 +1,7 @@
 const {Builder, By, until} = require('selenium-webdriver')
 const _ = require('lodash')
 const config = require('../config')
-const utils = require('../utils')
+const $ = require('../utils')
 
 // Input capabilities
 const capabilities = {
@@ -23,20 +23,52 @@ const onExit = () => {
     }
 }
 
-const landedInPage = (expectedPageTitle, pageTitle) => {
-    expectedPageTitle = (expectedPageTitle || '').toLowerCase()
-    pageTitle = (pageTitle || '').toLowerCase()
-
-    if (pageTitle === expectedPageTitle) {
-        return true
-    }
-
-    return pageTitle.indexOf(expectedPageTitle) > -1
-}
-
 const getSwatchElemId = (type, swatchId, colorId) => `option-label-${type}-${swatchId}-item-${colorId}`
 
-const addProductToBasket = async(driver, product) => {
+const getCounterNumber = async(driver) => {
+    try {
+        const counter = await driver.findElement(By.css('.counter-number'))
+        let counterNum = await counter.getText()
+        return $.extractNumberFromText(counterNum)
+    } catch (err) {
+        return -1
+    }
+}
+
+const login = async(driver, httpAuth, protocol, targetSite) => {
+    let baseUrl = homeUrl = `${protocol}:\\\\${targetSite}`
+    if (httpAuth) {
+        homeUrl = `${protocol}:\\\\${config.env.httpAuthUser}:${config.env.httpAuthPassword}@${targetSite}`
+    }
+
+    // Go to home page
+    await driver.get(homeUrl)
+    const loginLink = await driver.findElement(By.css('body > .page-wrapper > .page-header .authorization-link > a'))
+    let title = await driver.getTitle()
+    if (!$.stringIncludes('Home', title)) {
+        throw new Error('Home page landing failed.')
+    }
+
+    // Go to login page and login
+    const loginUrl = await loginLink.getAttribute('href')
+    await driver.navigate().to(loginUrl)
+    title = await driver.getTitle()
+    if (!$.stringIncludes('Login', title)) {
+        throw new Error('Login page landing failed.')
+    }
+
+    await driver.findElement(By.name('login[username]')).sendKeys(config.env.dd.accountEmail)
+    await driver.findElement(By.name('login[password]')).sendKeys(config.env.dd.accountPassword)
+    await driver.findElement(By.id('send2')).click()
+    
+    await driver.navigate().to(`${baseUrl}/customer/account/`)
+    title = await driver.getTitle()
+    if (!$.stringIncludes('Dashboard', title)) {
+        throw new Error('Login Failed.')
+    }
+}
+
+const addProductToCart = async(driver, product) => {
     await driver.navigate().to(product.url)
     const title = await driver.getTitle()
 
@@ -45,7 +77,7 @@ const addProductToBasket = async(driver, product) => {
 
     // Select the color
     const colorSwatchElemId = getSwatchElemId('color', product.colorSwatchId, product.colorId)
-    const colorSwatch = await driver.wait(until.elementLocated(By.id(colorSwatchElemId)), 2500)
+    const colorSwatch = await driver.wait(until.elementLocated(By.id(colorSwatchElemId)), 5000)
     const colorSwatchClassName = await colorSwatch.getAttribute('class')
     if (colorSwatchClassName.indexOf('selected') < 0) {
         await colorSwatch.click()
@@ -76,6 +108,39 @@ const addProductToBasket = async(driver, product) => {
     console.log('Size ID:', product.sizeId)
 
     // Check the quantity
+    let stockQty = await driver.findElement(By.id('stock-qty')).getText()
+    stockQty = $.extractNumberFromText(stockQty)
+
+    console.log('Stock QTY:', stockQty)
+
+    // Add to cart
+    let currCounterNumber = await getCounterNumber(driver)
+    console.log('CURR Counter:', currCounterNumber)
+
+    if (product.qty <= stockQty) {
+        await driver.findElement(By.id('qty')).clear().sendKeys(`${product.qty}`)
+        const qty = await driver.findElement(By.id('qty')).getAttribute('value')
+        if (parseInt(qty) !== product.qty) {
+            throw new Error('The product qty could not be set.')
+        }
+
+        const addToCart = await driver.findElement(By.id('product-addtocart-button'))
+        const addToCartDisabled = await addToCart.getAttribute('disabled')
+        if (addToCartDisabled === true) {
+            throw new Error(`Add to cart button is disabled.`)
+        }
+
+        await addToCart.submit()
+
+        /* await driver.wait(async(nextDriver) => {
+            let counterNum = await getCounterNumber(nextDriver)
+            console.log(counterNum)
+            return counterNum === currCounterNumber + product.qty 
+        }, 60000, undefined, 10000) */
+    }
+
+    const finalCounterNumber = await getCounterNumber(driver)
+    console.log('FINAL Counter:', finalCounterNumber)
 }
 
 const run = async(argv) => {
@@ -89,36 +154,9 @@ const run = async(argv) => {
         .withCapabilities(capabilities)
         .build()
 
-    let baseUrl = homeUrl = `${protocol}:\\\\${targetSite}`
-    if (httpAuth) {
-        homeUrl = `${protocol}:\\\\${config.env.httpAuthUser}:${config.env.httpAuthPassword}@${targetSite}`
-    }
+    await login(driver, httpAuth, protocol, targetSite)
 
-    // Go to home page
-    await driver.get(homeUrl)
-    const loginLink = await driver.findElement(By.css('body > .page-wrapper > .page-header .authorization-link > a'))
-    let title = await driver.getTitle()
-    if (!landedInPage('Home', title)) {
-        throw new Error('Home page landing failed.')
-    }
-
-    // Go to login page and login
-    const loginUrl = await loginLink.getAttribute('href')
-    await driver.navigate().to(loginUrl)
-    title = await driver.getTitle()
-    if (!landedInPage('Login', title)) {
-        throw new Error('Login page landing failed.')
-    }
-
-    await driver.findElement(By.name('login[username]')).sendKeys(config.env.dd.accountEmail)
-    await driver.findElement(By.name('login[password]')).sendKeys(config.env.dd.accountPassword)
-    await driver.findElement(By.id('send2')).click()
-    
-    await driver.navigate().to(`${baseUrl}/customer/account/`)
-    title = await driver.getTitle()
-    if (!landedInPage('Dashboard', title)) {
-        throw new Error('Login Failed.')
-    }
+    let baseUrl = `${protocol}:\\\\${targetSite}`
 
     // Add products to basket
     const products = [
@@ -140,8 +178,8 @@ const run = async(argv) => {
         }
     ]
 
-    await utils.asyncForEach(products, async(product) => {
-        await addProductToBasket(driver, product)
+    await $.asyncForEach(products, async(product) => {
+        await addProductToCart(driver, product)
     })
 
     driver.quit()
