@@ -1,6 +1,6 @@
 const {Builder, By, until} = require('selenium-webdriver')
 const _ = require('lodash')
-const config = require('../config')
+const config = {...require('../config')}
 const $ = require('../utils')
 
 // Input capabilities
@@ -15,32 +15,39 @@ const capabilities = {
  'name': 'Bstack-[Node] Sample Test'
 }
 
-const products = (baseUrl) => [
+const orders = () => [
     {
-        url: `${baseUrl}/sdbae26-so-danca-mens-professional-split-sole-canvas-upper-stretch-insert.html`,
-        colorSwatchId: 93,
-        colorId: 4,
-        sizeSwatchId: 152,
-        sizeId: 563,
-        qty: 2
-    },
-    {
-        url: `${baseUrl}/bl277m-bloch-pump-men-s-canvas-ballet-shoes.html`,
-        colorSwatchId: 93,
-        colorId: 4,
-        sizeSwatchId: 152,
-        sizeId: 393,
-        qty: 2
+        shippingAddress: {
+            firstName: 'John',
+            lastName: 'Doe',
+            company: 'DD',
+            address: '45  Ermin Street',
+            city: 'WYTHALL',
+            region: '',
+            postalCode: 'B47 4QX',
+            country: 'GB',
+            phoneNumber: '077 5164 4168'
+        },
+        products: [
+            {
+                url: `${config.baseUrl}/sdbae26-so-danca-mens-professional-split-sole-canvas-upper-stretch-insert.html`,
+                colorSwatchId: 93,
+                colorId: 4,
+                sizeSwatchId: 152,
+                sizeId: 563,
+                qty: 2
+            },
+            {
+                url: `${config.baseUrl}/bl277m-bloch-pump-men-s-canvas-ballet-shoes.html`,
+                colorSwatchId: 93,
+                colorId: 4,
+                sizeSwatchId: 152,
+                sizeId: 393,
+                qty: 2
+            }
+        ]
     }
 ]
-
-let driver
-
-const onExit = () => {
-    if (driver) {
-        driver.quit()
-    }
-}
 
 const getSwatchElemId = (type, swatchId, colorId) => `option-label-${type}-${swatchId}-item-${colorId}`
 
@@ -56,8 +63,12 @@ const getCartItemCount = async(driver) => {
 
 const getBaseUrl = (protocol, targetSite) => `${protocol}:\\\\${targetSite}`
 
-const login = async(driver, httpAuth, protocol, targetSite) => {
-    let baseUrl = homeUrl = getBaseUrl(protocol, targetSite)
+/**
+ * Login the user 
+ */
+const login = async(driver) => {
+    const { httpAuth, protocol, targetSite, baseUrl } = config
+    let homeUrl = baseUrl
     if (httpAuth) {
         homeUrl = `${protocol}:\\\\${config.env.httpAuthUser}:${config.env.httpAuthPassword}@${targetSite}`
     }
@@ -89,19 +100,89 @@ const login = async(driver, httpAuth, protocol, targetSite) => {
     }
 }
 
+/**
+ * Logout the user
+ */
 const logout = async(driver) => {
-    const authMenuLink = await driver.findElement(By.css('body > .page-wrapper > .page-header .authorization-link'))
-    await authMenuLink.click()
-
-    const logoutLink = await driver.findElement(By.partialLinkText('Logout'))
-    await logoutLink.click()
-
+    const { baseUrl } = config
+    await driver.get(`${baseUrl}/customer/account/logout/`)
     await driver.wait(async() => {
         let title = await driver.getTitle()
         return $.stringIncludes('Home', title)
-    }, 60000, undefined, 10000)
+    }, 30000, undefined, 1000)
 }
 
+const checkout = async(driver, order) => {
+    const { baseUrl } = config
+    await driver.get(`${baseUrl}/checkout/`)
+
+    const shipping = await driver.wait(until.elementLocated(By.id('shipping')), 10000)
+    
+    await driver.wait(async(newDriver) => {
+        const shipping = await newDriver.findElement(By.id('shipping'))
+        const addShippingAddress = await shipping.findElement(By.css('.action.action-show-popup'))
+        return addShippingAddress.isDisplayed() && addShippingAddress.isEnabled()
+    }, 30000, undefined, 1000)
+
+    const addShippingAddress = await shipping.findElement(By.css('.action.action-show-popup'))
+    await addShippingAddress.click()
+
+    const { shippingAddress } = order
+
+    const shippingAddressForm = await driver.wait(until.elementLocated(By.id('shipping-new-address-form')), 10000)
+
+    const country = await shippingAddressForm.findElement(By.name('country_id'))
+    await $.selectByVisibleText(country, shippingAddress.country)
+    await shippingAddressForm.findElement(By.name('firstname')).clear()
+    await shippingAddressForm.findElement(By.name('firstname')).sendKeys(shippingAddress.firstName)
+
+    await shippingAddressForm.findElement(By.name('lastname')).clear()
+    await shippingAddressForm.findElement(By.name('lastname')).sendKeys(shippingAddress.lastName)
+
+    await shippingAddressForm.findElement(By.name('company')).clear()
+    await shippingAddressForm.findElement(By.name('company')).sendKeys(shippingAddress.company)
+
+    await shippingAddressForm.findElement(By.name('street[0]')).clear()
+    await shippingAddressForm.findElement(By.name('street[0]')).sendKeys(shippingAddress.address)
+
+    await shippingAddressForm.findElement(By.name('city')).clear()
+    await shippingAddressForm.findElement(By.name('city')).sendKeys(shippingAddress.city)
+
+    await shippingAddressForm.findElement(By.name('region')).clear()
+    await shippingAddressForm.findElement(By.name('region')).sendKeys(shippingAddress.region)
+
+    await shippingAddressForm.findElement(By.name('postcode')).clear()
+    await shippingAddressForm.findElement(By.name('postcode')).sendKeys(shippingAddress.postalCode)
+
+    await shippingAddressForm.findElement(By.name('telephone')).clear()
+    await shippingAddressForm.findElement(By.name('telephone')).sendKeys(shippingAddress.phoneNumber)
+
+    await shippingAddressForm.findElement(By.id('shipping-save-in-address-book')).click()
+    await shippingAddressForm.submit()
+
+    $.sleep(2000)
+
+    const shippingMethodsForm = await driver.wait(until.elementLocated(By.id('co-shipping-method-form')), 10000)
+    await driver.wait(async() => {
+        let shippingMethodsCount = 0
+        try {
+            const shippingMethods = shippingMethodsForm.findElements(By.css('.col.col-method'))
+            shippingMethodsCoun = shippingMethods.length
+        } catch(err) {
+
+        }
+        
+        return shippingMethodsCount > 0
+    }, 10000)
+    const next = await shippingAddressForm.findElement(By.id('shipping-method-buttons-container'))
+    await next.click()
+
+    $.sleep(2000)
+}
+
+/**
+ * Adds a product to the cart
+ */
 const addProductToCart = async(driver, product) => {
     await driver.navigate().to(product.url)
     const title = await driver.getTitle()
@@ -167,14 +248,77 @@ const addProductToCart = async(driver, product) => {
 
         await addToCart.submit()
 
-        await driver.wait(async(nextDriver) => {
-            const newCartItemCount = await getCartItemCount(nextDriver)
+        await driver.wait(async(newDriver) => {
+            const newCartItemCount = await getCartItemCount(newDriver)
             return newCartItemCount === cartItemCount + product.qty 
-        }, 20000, undefined, 1000)
+        }, 30000, undefined, 1000)
     }
 
     cartItemCount = await getCartItemCount(driver)
     console.log('Cart items:', cartItemCount)
+}
+
+/**
+ * Empties the shopping cart
+ */
+const emptyCart = async(driver) => {
+    const { baseUrl } = config
+
+    await driver.get(`${baseUrl}/checkout/cart/`)
+
+    let cart
+    try {
+        cart = await driver.findElement(By.id('shopping-cart-table'))
+    } catch (err) {
+        console.log('Cart is empty')
+        return
+    }
+
+    let cartItemLines = await cart.findElements(By.css('.item-info'))
+    let cartItemLineCount = cartItemLines.length
+    const cartItemLineIterations = []
+    cartItemLines.forEach(() => {
+        cartItemLineIterations.push(cartItemLineIterations.length + 1)
+    })
+    console.log('Cart item lines:', cartItemLineCount)
+
+    await $.asyncForEach(cartItemLineIterations, async() => {
+        cart = await driver.findElement(By.id('shopping-cart-table'))
+        cartItemLines = await cart.findElements(By.css('.item-info'))
+        cartItemLine = cartItemLines[0]
+
+        const deleteAction = await cartItemLine.findElement(By.css('.action.action-delete'))
+        await deleteAction.click()
+
+        await driver.wait(async(newDriver) => {
+            try {
+                await newDriver.findElement(By.css('.cart-empty'))
+                return true
+            } catch (err) {
+            }
+            
+            try {
+                const newCart = await newDriver.findElement(By.id('shopping-cart-table'))
+                const newCartItemLines = await newCart.findElements(By.css('.item-info'))
+                if (newCartItemLines.length === cartItemLineCount - 1) {
+                    cartItemLineCount--
+                    return true
+                }
+            } catch (err) {
+            }
+            
+            return false
+        }, 30000, undefined, 1000)
+    })
+
+    try {
+        cart = await driver.findElement(By.id('shopping-cart-table'))
+        cartItemLines = await cart.findElements(By.css('.item-info'))
+        cartItemLineCount = cartItemLines.length
+        console.log('Cart item lines:', cartItemLineCount)
+    } catch (err) {
+        console.log('Cart item lines:', 0)
+    }
 }
 
 const run = async(argv) => {
@@ -183,24 +327,41 @@ const run = async(argv) => {
         throw new Error(`"target_site" is required.`)
     }
 
-    driver = new Builder()
+    config.targetSite = targetSite
+    config.protocol = protocol
+    config.httpAuth = httpAuth
+    config.baseUrl = getBaseUrl(protocol, targetSite)
+
+    let driver = new Builder()
         .usingServer('http://hub-cloud.browserstack.com/wd/hub')
         .withCapabilities(capabilities)
         .build()
 
-    await login(driver, httpAuth, protocol, targetSite)
+    try {
+        await login(driver)
 
-    let baseUrl = getBaseUrl(protocol, targetSite)
+        // Empty cart
+        await emptyCart(driver)
 
-    // Add products to basket
-    await $.asyncForEach(products(baseUrl), async(product) => {
-        await addProductToCart(driver, product)
-    })
+        // Get the order
+        /*const order = orders()[0]
+    
+        // Add products to basket
+        await $.asyncForEach(order.products, async(product) => {
+            await addProductToCart(driver, product)
+        })
 
-    await logout(driver)
+        // Go to checkout
+        await checkout(driver, order)
 
-    driver.quit()
+        // Logout
+        await logout(driver) */
+
+        await driver.quit()
+    } catch (err) {
+        await driver.quit()
+        throw err
+    }
 }
 
 exports.run = run
-exports.onExit = onExit
