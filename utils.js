@@ -1,3 +1,4 @@
+const {Builder, By, until} = require('selenium-webdriver')
 const clc = require('cli-color');
 
 exports.logInfo = (msg) => {
@@ -46,5 +47,15 @@ exports.stringIncludes = (str, searchValue) => {
 exports.sleep = (ms) => {
     return new Promise(resolve => {
         setTimeout(resolve, ms)
+    })
+}
+
+exports.selectByVisibleText = async(select, textDesired) => {
+    const options = await select.findElements(By.tagName('option'))
+    exports.asyncForEach(options, async(option) => {
+        const optionText = await option.getText()
+        if (optionText == textDesired) {
+            await option.click()
+        }
     })
 }
