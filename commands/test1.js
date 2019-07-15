@@ -12,11 +12,22 @@ const capabilities = {
  'resolution': '1280x960',
  'browserstack.user': config.env.browserstackUsername,
  'browserstack.key': config.env.browserstackAccessKey,
- 'name': 'Bstack-[Node] Sample Test'
+ 'name': 'Automated order'
 }
 
 const orders = () => [
     {
+        billingAddress: {
+            firstName: 'John',
+            lastName: 'Doe',
+            company: 'DD',
+            address: '45  Ermin Street',
+            city: 'WYTHALL',
+            region: '',
+            postalCode: 'B47 4QX',
+            country: 'GB',
+            phoneNumber: '077 5164 4168'
+        },
         shippingAddress: {
             firstName: 'John',
             lastName: 'Doe',
@@ -43,7 +54,7 @@ const orders = () => [
                 colorId: 4,
                 sizeSwatchId: 152,
                 sizeId: 563,
-                qty: 2
+                qty: 1
             },
             {
                 url: `${config.baseUrl}/bl277m-bloch-pump-men-s-canvas-ballet-shoes.html`,
@@ -51,7 +62,7 @@ const orders = () => [
                 colorId: 4,
                 sizeSwatchId: 152,
                 sizeId: 393,
-                qty: 2
+                qty: 1
             }
         ]
     }
@@ -93,9 +104,14 @@ const login = async(driver) => {
     try {
         const cookieAllow = await driver.wait(until.elementLocated(By.id('btn-cookie-allow')), 5000, undefined, 1000)
         await cookieAllow.click()
-        console.log('Cookies accepted')
     } catch(err) {
-        console.log('Cookies already accepted')
+    }
+
+    // Close chat
+    try {
+        const closeChat = await driver.wait(until.elementLocated(By.css('body > div > iframe #tawkchat-message-preview-close > .icon-close')), 5000, undefined, 1000)
+        await closeChat.click()
+    } catch(err) {
     }
     
     // Go to login page and login
@@ -129,8 +145,44 @@ const logout = async(driver) => {
     }, 30000, undefined, 1000)
 }
 
+const fillNewAddressForm = async(addressForm, address, saveAddressId = 'shipping-save-in-address-book') => {
+    const country = await addressForm.findElement(By.name('country_id'))
+    await $.selectByVisibleValue(country, address.country)
+    await addressForm.findElement(By.name('firstname')).clear()
+    await addressForm.findElement(By.name('firstname')).sendKeys(address.firstName)
+
+    await addressForm.findElement(By.name('lastname')).clear()
+    await addressForm.findElement(By.name('lastname')).sendKeys(address.lastName)
+
+    await addressForm.findElement(By.name('company')).clear()
+    await addressForm.findElement(By.name('company')).sendKeys(address.company)
+
+    await addressForm.findElement(By.name('street[0]')).clear()
+    await addressForm.findElement(By.name('street[0]')).sendKeys(address.address)
+
+    await addressForm.findElement(By.name('city')).clear()
+    await addressForm.findElement(By.name('city')).sendKeys(address.city)
+
+    await addressForm.findElement(By.name('region')).clear()
+    await addressForm.findElement(By.name('region')).sendKeys(address.region)
+
+    await addressForm.findElement(By.name('postcode')).clear()
+    await addressForm.findElement(By.name('postcode')).sendKeys(address.postalCode)
+
+    await addressForm.findElement(By.name('telephone')).clear()
+    await addressForm.findElement(By.name('telephone')).sendKeys(address.phoneNumber)
+
+    await addressForm.findElement(By.id(saveAddressId)).click()
+}
+
+/**
+ * Places the order
+ */
 const checkout = async(driver, order) => {
     const { baseUrl } = config
+    const { billingAddress, shippingAddress, payment } = order
+
+    // Go to checkout page
     await driver.get(`${baseUrl}/checkout/`)
 
     // Wait for shipping section to load
@@ -154,44 +206,17 @@ const checkout = async(driver, order) => {
     await addShippingAddress.click()
 
     // Fill in the new shipping address form
-    const { shippingAddress } = order
     const shippingAddressFormModal = await driver.wait(until.elementLocated(By.css('.modal-popup.modal-slide._inner-scroll._show')), 10000, undefined, 1000)
     const shippingAddressForm = await driver.wait(until.elementLocated(By.id('shipping-new-address-form')), 10000, undefined, 1000)
 
-    const country = await shippingAddressForm.findElement(By.name('country_id'))
-    await $.selectByVisibleText(country, shippingAddress.country)
-    await shippingAddressForm.findElement(By.name('firstname')).clear()
-    await shippingAddressForm.findElement(By.name('firstname')).sendKeys(shippingAddress.firstName)
-
-    await shippingAddressForm.findElement(By.name('lastname')).clear()
-    await shippingAddressForm.findElement(By.name('lastname')).sendKeys(shippingAddress.lastName)
-
-    await shippingAddressForm.findElement(By.name('company')).clear()
-    await shippingAddressForm.findElement(By.name('company')).sendKeys(shippingAddress.company)
-
-    await shippingAddressForm.findElement(By.name('street[0]')).clear()
-    await shippingAddressForm.findElement(By.name('street[0]')).sendKeys(shippingAddress.address)
-
-    await shippingAddressForm.findElement(By.name('city')).clear()
-    await shippingAddressForm.findElement(By.name('city')).sendKeys(shippingAddress.city)
-
-    await shippingAddressForm.findElement(By.name('region')).clear()
-    await shippingAddressForm.findElement(By.name('region')).sendKeys(shippingAddress.region)
-
-    await shippingAddressForm.findElement(By.name('postcode')).clear()
-    await shippingAddressForm.findElement(By.name('postcode')).sendKeys(shippingAddress.postalCode)
-
-    await shippingAddressForm.findElement(By.name('telephone')).clear()
-    await shippingAddressForm.findElement(By.name('telephone')).sendKeys(shippingAddress.phoneNumber)
-
-    await shippingAddressForm.findElement(By.id('shipping-save-in-address-book')).click()
+    await fillNewAddressForm(shippingAddressForm, shippingAddress)
 
     // Submit the new shipping address form
     const saveShippingAddressBtn = await shippingAddressFormModal.findElement(By.css('.action-save-address'))
     await saveShippingAddressBtn.click()
 
     // Wait for the modal to close
-    await $.sleep(1000)
+    await $.sleep(5000)
 
     // Wait for shipping methods to load
     shippingMethods = await driver.wait(until.elementLocated(By.id('opc-shipping_method')), 30000, undefined, 1000)
@@ -200,7 +225,6 @@ const checkout = async(driver, order) => {
             const shippingMethodLoadedClassName = await shippingMethods.getAttribute('class')
             return shippingMethodLoadedClassName.indexOf('_block-content-loading') < 0
         } catch(err) {
-            return false
         }
     }, 30000, undefined, 1000)
 
@@ -239,7 +263,51 @@ const checkout = async(driver, order) => {
     await sagepayMethod.click()
     
     // Submit payment form
-    const checkoutButton = await driver.findElement(By.css('.payment-method._active .action.checkout'))
+    const activePaymentMethod = await driver.findElement(By.css('.payment-method._active'))
+    if (billingAddress) {
+        const enterBillingAddress = await activePaymentMethod.findElement(By.name('billing-address-same-as-shipping'))
+        await enterBillingAddress.click()
+
+        // Wait until addresses dropdown loads
+        let newBillingAddress
+        await driver.wait(async() => {
+            newBillingAddress = await activePaymentMethod.findElement(By.name('billing_address_id'))
+            const newBillingAddressDisplayed = await newBillingAddress.isDisplayed()
+            return newBillingAddressDisplayed
+        }, 30000, undefined, 1000)
+
+        await $.selectByVisibleText(newBillingAddress, 'New Address')
+        await $.sleep(1000)
+        
+        // Wait until the billing address form loads
+        let billingAddressForm
+        await driver.wait(async() => {
+            billingAddressForm = await activePaymentMethod.findElement(By.css('.billing-address-form > form'))
+            const billingAddressDisplayed = await billingAddressForm.isDisplayed()
+            return billingAddressDisplayed
+        }, 30000, undefined, 1000)
+
+        await fillNewAddressForm(billingAddressForm, billingAddress, 'billing-save-in-address-book-sagepaysuiteform')
+
+        // Submit the new billing address form
+        let saveBillingAddress
+        await driver.wait(async() => {
+            saveBillingAddress = await activePaymentMethod.findElement(By.css('.payment-method-billing-address .action.action-update'))
+            const saveBillingAddressDisplayed = await saveBillingAddress.isDisplayed()
+            return saveBillingAddressDisplayed
+        }, 30000, undefined, 1000)
+
+        await saveBillingAddress.click()
+    }
+
+    // Wait until checkout button is enabled
+    let checkoutButton
+    await driver.wait(async() => {
+        checkoutButton = await activePaymentMethod.findElement(By.css('.action.checkout'))
+        const checkoutButtonClassName = await checkoutButton.getAttribute('class')
+        return checkoutButtonClassName.indexOf('disabled') < 1
+    }, 30000, undefined, 1000)
+
     await checkoutButton.click()
 
     // Sagepay payment selection
@@ -254,8 +322,6 @@ const checkout = async(driver, order) => {
     let paymentMethod
     
     // Click on the first payment method
-    const { payment } = order
-
     await $.asyncForEach(paymentMethodsList, async(paymentMethodItem) => {
         let paymentMethodName = await paymentMethodItem.findElement(By.css('.payment-method__name'))
         paymentMethodName = await paymentMethodName.getText()
@@ -275,6 +341,44 @@ const checkout = async(driver, order) => {
         const title = await newDriver.getTitle()
         return $.stringIncludes('Sage Pay - Card Details', title)
     }, 30000, undefined, 1000)
+
+    // Fill in and submit the credit card form
+    const ccForm = await driver.wait(until.elementLocated(By.css('#main > div > form')), 10000, undefined, 1000)
+
+    await ccForm.findElement(By.name('cardholder')).clear()
+    await ccForm.findElement(By.name('cardholder')).sendKeys(payment.name)
+
+    await ccForm.findElement(By.name('cardnumber')).clear()
+    await ccForm.findElement(By.name('cardnumber')).sendKeys(payment.card)
+
+    await ccForm.findElement(By.name('expirymonth')).clear()
+    await ccForm.findElement(By.name('expirymonth')).sendKeys(payment.month)
+
+    await ccForm.findElement(By.name('expiryyear')).clear()
+    await ccForm.findElement(By.name('expiryyear')).sendKeys(payment.year)
+
+    await ccForm.findElement(By.name('securitycode')).clear()
+    await ccForm.findElement(By.name('securitycode')).sendKeys(payment.cvc)
+
+    const submitCcForm = await ccForm.findElement(By.name('action'))
+    await submitCcForm.click()
+
+    // Sagepay payment order summary
+    await driver.wait(async(newDriver) => {
+        const title = await newDriver.getTitle()
+        return $.stringIncludes('Sage Pay - Order Summary', title)
+    }, 30000, undefined, 1000)
+
+    const ccConfirmationForm = await driver.wait(until.elementLocated(By.css('#main > form')), 10000, undefined, 1000)
+
+    const submitCcConfirmationForm = await ccConfirmationForm.findElement(By.name('action'))
+    await submitCcConfirmationForm.click()
+
+    // Success page
+    await driver.wait(async(newDriver) => {
+        const title = await newDriver.getTitle()
+        return $.stringIncludes('Success Page', title)
+    }, 60000, undefined, 1000)
 }
 
 /**
@@ -283,9 +387,6 @@ const checkout = async(driver, order) => {
 const addProductToCart = async(driver, product) => {
     await driver.navigate().to(product.url)
     const title = await driver.getTitle()
-
-    console.log('Product URL:', product.url)
-    console.log('Product:', title)
 
     // Select the color
     const colorSwatchElemId = getSwatchElemId('color', product.colorSwatchId, product.colorId)
@@ -301,8 +402,6 @@ const addProductToCart = async(driver, product) => {
         throw new Error(`Product color "${product.colorId}" could not be selected.`)
     }
 
-    console.log('Color ID:', product.colorId)
-
     // Select the size
     const sizeSwatchElemId = getSwatchElemId('size', product.sizeSwatchId, product.sizeId)
     const sizeSwatch = await driver.findElement(By.id(sizeSwatchElemId))
@@ -317,17 +416,12 @@ const addProductToCart = async(driver, product) => {
         throw new Error(`Product size "${product.sizeId}" could not be selected.`)
     }
 
-    console.log('Size ID:', product.sizeId)
-
     // Check the quantity
     let stockQty = await driver.findElement(By.id('stock-qty')).getText()
     stockQty = $.extractNumberFromText(stockQty)
 
-    console.log('Stock QTY:', stockQty)
-
     // Add to cart
     let cartItemCount = await getCartItemCount(driver)
-    console.log('Cart items:', cartItemCount)
 
     if (product.qty <= stockQty) {
         await driver.findElement(By.id('qty')).clear()
@@ -352,7 +446,6 @@ const addProductToCart = async(driver, product) => {
     }
 
     cartItemCount = await getCartItemCount(driver)
-    console.log('Cart items:', cartItemCount)
 }
 
 /**
@@ -367,15 +460,37 @@ const emptyCart = async(driver) => {
     try {
         cart = await driver.findElement(By.id('shopping-cart-table'))
     } catch (err) {
-        console.log('Cart is empty')
         return
     }
 
+    // Wait for the shipping info to load
+    await driver.wait(until.elementLocated(By.id('shipping-zip-form')), 30000, undefined, 1000)
+
+    // Wait until the shipping form has loaded
+    await $.sleep(5000)
+    await driver.wait(until.elementLocated(By.id('co-shipping-method-form')), 30000, undefined, 1000)
+    await driver.wait(async(newDriver) => {
+        const shippingForm = await newDriver.findElement(By.id('co-shipping-method-form'))
+        const shippingFormClass = await shippingForm.getAttribute('class')
+        return shippingFormClass.indexOf('_block-content-loading') < 0
+    }, 30000, undefined, 10000)
+
+    // Wait until the cart total have loaded
+    await driver.wait(until.elementLocated(By.id('cart-totals')), 30000, undefined, 1000)
+    await driver.wait(async(newDriver) => {
+        const cartTotals = await newDriver.findElement(By.id('cart-totals'))
+        try {
+            const loadingContent = await cartTotals.findElement(By.css('._block-content-loading'))
+            return loadingContent.length < 1
+        } catch(err) {
+            return true
+        }
+    }, 30000, undefined, 10000)
+
+    // Get the cart item lines
     let cartItemLines = await cart.findElements(By.css('.item-info'))
     let cartItemLineCount = cartItemLines.length
     const cartItemLineIterations = _.range(cartItemLineCount)
-
-    console.log('Cart item lines:', cartItemLineCount)
 
     await $.asyncForEach(cartItemLineIterations, async() => {
         cart = await driver.findElement(By.id('shopping-cart-table'))
@@ -410,9 +525,7 @@ const emptyCart = async(driver) => {
         cart = await driver.findElement(By.id('shopping-cart-table'))
         cartItemLines = await cart.findElements(By.css('.item-info'))
         cartItemLineCount = cartItemLines.length
-        console.log('Cart item lines:', cartItemLineCount)
     } catch (err) {
-        console.log('Cart item lines:', 0)
     }
 }
 
