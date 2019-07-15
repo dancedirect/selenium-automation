@@ -52,10 +52,17 @@ exports.sleep = (ms) => {
 
 exports.selectByVisibleText = async(select, textDesired) => {
     const options = await select.findElements(By.tagName('option'))
-    exports.asyncForEach(options, async(option) => {
-        const optionText = await option.getText()
-        if (optionText == textDesired) {
-            await option.click()
+    let optionFound
+    await exports.asyncForEach(options, async(option) => {
+        const value = await option.getAttribute('value')
+        if (value === textDesired) {
+            optionFound = option
         }
     })
+
+    if (!optionFound) {
+        throw new Error(`Option "${textDesired}" not found.`)
+    }
+
+    await optionFound.click()
 }
