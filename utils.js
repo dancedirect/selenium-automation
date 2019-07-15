@@ -1,4 +1,5 @@
 const {Builder, By, until} = require('selenium-webdriver')
+const config = require('./config')
 const clc = require('cli-color');
 
 exports.logInfo = (msg) => {
@@ -82,4 +83,10 @@ exports.selectByVisibleText = async(select, textDesired) => {
     }
 
     await optionFound.click()
+}
+
+exports.log = (msg) => {
+    if (config.env.debug) {
+        console.log(msg)
+    }
 }

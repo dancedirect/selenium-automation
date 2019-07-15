@@ -10,7 +10,8 @@ const config = {
     ids: {
         accountEmail: process.env.IDS_ACCOUNT_EMAIL,
         accountPassword: process.env.IDS_ACCOUNT_PASSWORD
-    }
+    },
+    debug: parseInt(process.env.DEBUG_ENABLED) === 1
 }
 
 exports.env = config
