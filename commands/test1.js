@@ -40,13 +40,16 @@ const orders = () => [
             phoneNumber: '077 5164 4168'
         },
         payment: {
-            type: 'Sagepay',
+            /* type: 'Sagepay',
             cardType: 'MasterCard',
             card: '5404000000000001',
             name: 'John Doe',
             month: '09',
             year: '2020',
-            cvc: '256'
+            cvc: '256' */
+            type: 'Paypal',
+            email: 'paypaltest@ids.co.uk',
+            password: 'PPTestPassword!2013'
         },
         products: [
             {
@@ -172,21 +175,35 @@ const checkout = async(driver, order) => {
         }
     }, 30000, undefined, 1000)
 
-    // Display the new shipping address modal
-    const addShippingAddress = await shipping.findElement(By.css('.action.action-show-popup'))
-    await addShippingAddress.click()
+    // Does the user have a shipping address
+    let hasShippingAddresses = true
+    try {
+        await shipping.findElements(By.css('.shipping-address-item'))
+    } catch(err) {
+        hasShippingAddresses = false
+    }
 
-    // Fill in the new shipping address form
-    const shippingAddressFormModal = await driver.wait(until.elementLocated(By.css('.modal-popup.modal-slide._inner-scroll._show')), 10000, undefined, 1000)
-    const shippingAddressForm = await driver.wait(until.elementLocated(By.id('shipping-new-address-form')), 10000, undefined, 1000)
+    // No Shipping address found. Enter a new one
+    if (!hasShippingAddresses) {
+        // Fill in the new shipping address form
+        const shippingAddressForm = await driver.wait(until.elementLocated(By.id('shipping-new-address-form')), 10000, undefined, 1000)
+        await fillCheckoutAddressForm(shippingAddressForm, shippingAddress)
+    } else {
+        // Display the new shipping address modal
+        const addShippingAddress = await shipping.findElement(By.css('.action.action-show-popup'))
+        await addShippingAddress.click()
 
-    await fillCheckoutAddressForm(shippingAddressForm, shippingAddress)
+        // Fill in the new shipping address form
+        const shippingAddressFormModal = await driver.wait(until.elementLocated(By.css('.modal-popup.modal-slide._inner-scroll._show')), 10000, undefined, 1000)
+        const shippingAddressForm = await driver.wait(until.elementLocated(By.id('shipping-new-address-form')), 10000, undefined, 1000)
 
-    // Submit the new shipping address form
-    const saveShippingAddressBtn = await shippingAddressFormModal.findElement(By.css('.action-save-address'))
-    await saveShippingAddressBtn.click()
+        await fillCheckoutAddressForm(shippingAddressForm, shippingAddress, 'shipping-save-in-address-book')
 
-    // Wait for the modal to close
+        // Submit the new shipping address form
+        const saveShippingAddressBtn = await shippingAddressFormModal.findElement(By.css('.action-save-address'))
+        await saveShippingAddressBtn.click()
+    }
+
     await $.sleep(5000)
 
     // Wait for shipping methods to load
@@ -230,7 +247,7 @@ const checkout = async(driver, order) => {
     }, 30000, undefined, 1000)
 
     // Execute payment type flow
-    if (payment.type === 'paypal') {
+    if (payment.type.toLowerCase() === 'paypal') {
         await paypalCheckout(driver, payment)
     } else {
         await sagepayCheckout(driver, payment, billingAddress)
@@ -246,7 +263,7 @@ const checkout = async(driver, order) => {
 /**
  * Helper to complete the checkout address forms
  */
-const fillCheckoutAddressForm = async(addressForm, address, saveAddressId = 'shipping-save-in-address-book') => {
+const fillCheckoutAddressForm = async(addressForm, address, saveAddressId) => {
     const country = await addressForm.findElement(By.name('country_id'))
     await $.selectByVisibleValue(country, address.country)
     await addressForm.findElement(By.name('firstname')).clear()
@@ -273,7 +290,9 @@ const fillCheckoutAddressForm = async(addressForm, address, saveAddressId = 'shi
     await addressForm.findElement(By.name('telephone')).clear()
     await addressForm.findElement(By.name('telephone')).sendKeys(address.phoneNumber)
 
-    await addressForm.findElement(By.id(saveAddressId)).click()
+    if (saveAddressId) {
+        await addressForm.findElement(By.id(saveAddressId)).click()
+    }
 }
 
 /**
@@ -282,6 +301,16 @@ const fillCheckoutAddressForm = async(addressForm, address, saveAddressId = 'shi
 const paypalCheckout = async(driver, payment) => {
     const paypalMethod = await driver.findElement(By.id('paypal_express'))
     await paypalMethod.click()
+
+    const activePaymentMethod = await driver.findElement(By.css('.payment-method._active'))
+
+    // Wait until checkout button is enabled
+    let checkoutButton
+    await driver.wait(async() => {
+        checkoutButton = await activePaymentMethod.findElement(By.css('.action.checkout'))
+        const checkoutButtonClassName = await checkoutButton.getAttribute('class')
+        return checkoutButtonClassName.indexOf('disabled') < 1
+    }, 30000, undefined, 1000)
 }
 
 /**
