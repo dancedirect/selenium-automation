@@ -28,6 +28,14 @@ const orders = () => [
             country: 'GB',
             phoneNumber: '077 5164 4168'
         },
+        payment: {
+            type: 'MasterCard',
+            card: '5404000000000001',
+            name: 'John Doe',
+            month: '09',
+            year: '2020',
+            cvc: '256'
+        },
         products: [
             {
                 url: `${config.baseUrl}/sdbae26-so-danca-mens-professional-split-sole-canvas-upper-stretch-insert.html`,
@@ -81,6 +89,15 @@ const login = async(driver) => {
         throw new Error('Home page landing failed.')
     }
 
+    // Accept cookies
+    try {
+        const cookieAllow = await driver.wait(until.elementLocated(By.id('btn-cookie-allow')), 5000, undefined, 1000)
+        await cookieAllow.click()
+        console.log('Cookies accepted')
+    } catch(err) {
+        console.log('Cookies already accepted')
+    }
+    
     // Go to login page and login
     const loginUrl = await loginLink.getAttribute('href')
     await driver.navigate().to(loginUrl)
@@ -107,7 +124,7 @@ const logout = async(driver) => {
     const { baseUrl } = config
     await driver.get(`${baseUrl}/customer/account/logout/`)
     await driver.wait(async() => {
-        let title = await driver.getTitle()
+        const title = await driver.getTitle()
         return $.stringIncludes('Home', title)
     }, 30000, undefined, 1000)
 }
@@ -116,20 +133,30 @@ const checkout = async(driver, order) => {
     const { baseUrl } = config
     await driver.get(`${baseUrl}/checkout/`)
 
-    const shipping = await driver.wait(until.elementLocated(By.id('shipping')), 10000)
+    // Wait for shipping section to load
+    const shipping = await driver.wait(until.elementLocated(By.id('shipping')), 10000, undefined, 1000)
     
-    await driver.wait(async(newDriver) => {
-        const shipping = await newDriver.findElement(By.id('shipping'))
-        const addShippingAddress = await shipping.findElement(By.css('.action.action-show-popup'))
-        return addShippingAddress.isDisplayed() && addShippingAddress.isEnabled()
+    await $.sleep(1000)
+
+    // Wait for shipping methods to load
+    let shippingMethods = await driver.wait(until.elementLocated(By.id('opc-shipping_method')), 30000, undefined, 1000)
+    await driver.wait(async() => {
+        try {
+            const shippingMethodLoadedClassName = await shippingMethods.getAttribute('class')
+            return shippingMethodLoadedClassName.indexOf('_block-content-loading') < 0
+        } catch(err) {
+            return false
+        }
     }, 30000, undefined, 1000)
 
+    // Display the new shipping address modal
     const addShippingAddress = await shipping.findElement(By.css('.action.action-show-popup'))
     await addShippingAddress.click()
 
+    // Fill in the new shipping address form
     const { shippingAddress } = order
-
-    const shippingAddressForm = await driver.wait(until.elementLocated(By.id('shipping-new-address-form')), 10000)
+    const shippingAddressFormModal = await driver.wait(until.elementLocated(By.css('.modal-popup.modal-slide._inner-scroll._show')), 10000, undefined, 1000)
+    const shippingAddressForm = await driver.wait(until.elementLocated(By.id('shipping-new-address-form')), 10000, undefined, 1000)
 
     const country = await shippingAddressForm.findElement(By.name('country_id'))
     await $.selectByVisibleText(country, shippingAddress.country)
@@ -158,26 +185,96 @@ const checkout = async(driver, order) => {
     await shippingAddressForm.findElement(By.name('telephone')).sendKeys(shippingAddress.phoneNumber)
 
     await shippingAddressForm.findElement(By.id('shipping-save-in-address-book')).click()
-    await shippingAddressForm.submit()
 
-    $.sleep(2000)
+    // Submit the new shipping address form
+    const saveShippingAddressBtn = await shippingAddressFormModal.findElement(By.css('.action-save-address'))
+    await saveShippingAddressBtn.click()
 
-    const shippingMethodsForm = await driver.wait(until.elementLocated(By.id('co-shipping-method-form')), 10000)
+    // Wait for the modal to close
+    await $.sleep(1000)
+
+    // Wait for shipping methods to load
+    shippingMethods = await driver.wait(until.elementLocated(By.id('opc-shipping_method')), 30000, undefined, 1000)
+    await driver.wait(async() => {
+        try {
+            const shippingMethodLoadedClassName = await shippingMethods.getAttribute('class')
+            return shippingMethodLoadedClassName.indexOf('_block-content-loading') < 0
+        } catch(err) {
+            return false
+        }
+    }, 30000, undefined, 1000)
+
+    // Make sure there are shipping methods available
+    const shippingMethodsForm = await driver.wait(until.elementLocated(By.id('co-shipping-method-form')), 30000, undefined, 1000)
     await driver.wait(async() => {
         let shippingMethodsCount = 0
         try {
-            const shippingMethods = shippingMethodsForm.findElements(By.css('.col.col-method'))
-            shippingMethodsCoun = shippingMethods.length
+            const shippingMethodsAvailable = await shippingMethodsForm.findElements(By.css('.col.col-method'))
+            shippingMethodsCount = shippingMethodsAvailable.length
         } catch(err) {
-
         }
         
         return shippingMethodsCount > 0
-    }, 10000)
-    const next = await shippingAddressForm.findElement(By.id('shipping-method-buttons-container'))
+    }, 30000, undefined, 1000)
+
+    // Go to the next step
+    const buttons = await driver.findElement(By.id('shipping-method-buttons-container'))
+    const next = await buttons.findElement(By.css('.continue'))
     await next.click()
 
-    $.sleep(2000)
+    // Wait until the payment methods are visible
+    await driver.wait(async(newDriver) => {
+        const paymentMethods = await newDriver.findElement(By.id('checkout-payment-method-load'))
+
+        try {
+            await paymentMethods.findElement(By.css('.payment-methods'))
+            return true
+        } catch (err) {
+            return false
+        }
+    }, 30000, undefined, 1000)
+
+    // Select Sagepay
+    const sagepayMethod = await driver.findElement(By.id('sagepaysuiteform'))
+    await sagepayMethod.click()
+    
+    // Submit payment form
+    const checkoutButton = await driver.findElement(By.css('.payment-method._active .action.checkout'))
+    await checkoutButton.click()
+
+    // Sagepay payment selection
+    await driver.wait(async(newDriver) => {
+        const title = await newDriver.getTitle()
+        return $.stringIncludes('Sage Pay - Payment Selection', title)
+    }, 30000, undefined, 1000)
+
+    // Wait for the payment list to load
+    const paymentMethods = await driver.wait(until.elementLocated(By.css('.payment-method-list')), 30000, undefined, 1000)
+    const paymentMethodsList = await paymentMethods.findElements(By.css('.payment-method-list__item'))
+    let paymentMethod
+    
+    // Click on the first payment method
+    const { payment } = order
+
+    await $.asyncForEach(paymentMethodsList, async(paymentMethodItem) => {
+        let paymentMethodName = await paymentMethodItem.findElement(By.css('.payment-method__name'))
+        paymentMethodName = await paymentMethodName.getText()
+        if (paymentMethodName.toLowerCase() === payment.type.toLowerCase()) {
+            paymentMethod = paymentMethodItem
+        }
+    })
+
+    if (!paymentMethod) {
+        throw new Error('Payment method not found.')
+    }
+
+    await paymentMethod.click()
+
+    // Sagepay payment card details
+    await driver.wait(async(newDriver) => {
+        const title = await newDriver.getTitle()
+        return $.stringIncludes('Sage Pay - Card Details', title)
+    }, 30000, undefined, 1000)
 }
 
 /**
@@ -276,10 +373,8 @@ const emptyCart = async(driver) => {
 
     let cartItemLines = await cart.findElements(By.css('.item-info'))
     let cartItemLineCount = cartItemLines.length
-    const cartItemLineIterations = []
-    cartItemLines.forEach(() => {
-        cartItemLineIterations.push(cartItemLineIterations.length + 1)
-    })
+    const cartItemLineIterations = _.range(cartItemLineCount)
+
     console.log('Cart item lines:', cartItemLineCount)
 
     await $.asyncForEach(cartItemLineIterations, async() => {
@@ -344,7 +439,7 @@ const run = async(argv) => {
         await emptyCart(driver)
 
         // Get the order
-        /*const order = orders()[0]
+        const order = orders()[0]
     
         // Add products to basket
         await $.asyncForEach(order.products, async(product) => {
@@ -355,7 +450,7 @@ const run = async(argv) => {
         await checkout(driver, order)
 
         // Logout
-        await logout(driver) */
+        await logout(driver)
 
         await driver.quit()
     } catch (err) {
