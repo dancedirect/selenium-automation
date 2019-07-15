@@ -50,12 +50,29 @@ exports.sleep = (ms) => {
     })
 }
 
-exports.selectByVisibleText = async(select, textDesired) => {
+exports.selectByVisibleValue = async(select, valueDesired) => {
     const options = await select.findElements(By.tagName('option'))
     let optionFound
     await exports.asyncForEach(options, async(option) => {
         const value = await option.getAttribute('value')
-        if (value === textDesired) {
+        if (value === valueDesired) {
+            optionFound = option
+        }
+    })
+
+    if (!optionFound) {
+        throw new Error(`Option "${valueDesired}" not found.`)
+    }
+
+    await optionFound.click()
+}
+
+exports.selectByVisibleText = async(select, textDesired) => {
+    const options = await select.findElements(By.tagName('option'))
+    let optionFound
+    await exports.asyncForEach(options, async(option) => {
+        const value = await option.getText()
+        if (value.toLowerCase() === textDesired.toLowerCase()) {
             optionFound = option
         }
     })
