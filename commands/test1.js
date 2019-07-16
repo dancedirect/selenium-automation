@@ -59,7 +59,7 @@ const orders = () => [
                 sizeSwatchId: 155,
                 sizeId: 404,
                 qty: 1
-            },
+            },*/
             {
                 url: `${config.baseUrl}/bl277m-bloch-pump-men-s-canvas-ballet-shoes`,
                 colorSwatchId: 93,
@@ -67,7 +67,7 @@ const orders = () => [
                 sizeSwatchId: 155,
                 sizeId: 408,
                 qty: 1
-            },*/
+            },/*
             {
                 url: `${config.baseUrl}/bl277m-bloch-pump-men-s-canvas-ballet-shoes.html`,
                 colorSwatchId: 93,
@@ -83,7 +83,7 @@ const orders = () => [
                 sizeSwatchId: 152,
                 sizeId: 499,
                 qty: 1
-            }
+            }*/
         ]
     }
 ]
@@ -206,7 +206,7 @@ const checkout = async(driver, order) => {
         const shippingAddressFormModal = await driver.wait(until.elementLocated(By.css('.modal-popup.modal-slide._inner-scroll._show')), 10000, undefined, 1000)
         const shippingAddressForm = await driver.wait(until.elementLocated(By.id('shipping-new-address-form')), 10000, undefined, 1000)
 
-        await fillCheckoutAddressForm(driver, shippingAddressForm, shippingAddress, 'shipping-save-in-address-book')
+        await fillCheckoutAddressForm(driver, shippingAddressForm, shippingAddress)
 
         // Submit the new shipping address form
         const saveShippingAddressBtn = await shippingAddressFormModal.findElement(By.css('.action-save-address'))
@@ -274,7 +274,7 @@ const checkout = async(driver, order) => {
 /**
  * Helper to complete the checkout address forms
  */
-const fillCheckoutAddressForm = async(driver, addressForm, address, saveAddressId) => {
+const fillCheckoutAddressForm = async(driver, addressForm, address) => {
     const country = await addressForm.findElement(By.name('country_id'))
     await $.selectByVisibleValue(country, address.country)
     await addressForm.findElement(By.name('firstname')).clear()
@@ -301,23 +301,11 @@ const fillCheckoutAddressForm = async(driver, addressForm, address, saveAddressI
     await addressForm.findElement(By.name('telephone')).clear()
     await addressForm.findElement(By.name('telephone')).sendKeys(address.phoneNumber)
 
-    if (saveAddressId) {
-        let saveAddress
-        try {
-            saveAddress = await addressForm.findElement(By.id(saveAddressId))
-        } catch(err) {
-        }
-
-        if (saveAddress) {
-            await driver.wait(async() => {
-                saveAddress = await addressForm.findElement(By.id(saveAddressId))
-                const saveAddressVisible = await saveAddress.isDisplayed()
-                const saveAddressEnabled = await saveAddress.isEnabled()
-                return saveAddressVisible && saveAddressEnabled
-            }, 30000, undefined, 1000)
-
-            await saveAddress.click()
-        }
+    try {
+        const saveAddress = await addressForm.findElement(By.css('.field.choice > label'))
+        await $.scrollElementIntoView(driver, saveAddress)
+        await saveAddress.click();
+    } catch(err) {
     }
 }
 
@@ -376,7 +364,7 @@ const sagepayCheckout = async(driver, payment, billingAddress) => {
         }, 30000, undefined, 1000)
 
         // TODO: fix this check there are no multiple elements
-        await fillCheckoutAddressForm(driver, billingAddressForm, billingAddress, billingAddressSelect ? 'billing-save-in-address-book-sagepaysuiteform' : undefined)
+        await fillCheckoutAddressForm(driver, billingAddressForm, billingAddress)
    
         // Submit the new billing address form
         let saveBillingAddress
