@@ -85,6 +85,11 @@ exports.selectByVisibleText = async(select, textDesired) => {
     await optionFound.click()
 }
 
+exports.scrollElementIntoView = async(driver, elem) => {
+    await driver.executeScript("arguments[0].scrollIntoView()", elem);
+    await driver.sleep(300);
+};
+
 exports.log = (msg) => {
     if (config.env.debug) {
         console.log(msg)
