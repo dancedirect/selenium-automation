@@ -1,4 +1,4 @@
-const {Builder, By, until} = require('selenium-webdriver')
+const {Builder, By, until, Actions} = require('selenium-webdriver')
 const _ = require('lodash')
 const config = {...require('../config')}
 const $ = require('../utils')
@@ -21,7 +21,7 @@ const orders = () => [
             firstName: 'John',
             lastName: 'Doe',
             company: 'DD',
-            address: '45  Ermin Street',
+            address: '45 Ermin Street',
             city: 'WYTHALL',
             region: '',
             postalCode: 'B47 4QX',
@@ -32,7 +32,7 @@ const orders = () => [
             firstName: 'John',
             lastName: 'Doe',
             company: 'DD',
-            address: '45  Ermin Street',
+            address: '45 Ermin Street',
             city: 'WYTHALL',
             region: '',
             postalCode: 'B47 4QX',
@@ -40,24 +40,40 @@ const orders = () => [
             phoneNumber: '077 5164 4168'
         },
         payment: {
-            /* type: 'Sagepay',
+            type: 'Sagepay',
             cardType: 'MasterCard',
             card: '5404000000000001',
             name: 'John Doe',
             month: '09',
             year: '2020',
-            cvc: '256' */
-            type: 'Paypal',
+            cvc: '256'
+            /*type: 'Paypal',
             email: 'paypaltest@ids.co.uk',
-            password: 'PPTestPassword!2013'
+            password: 'PPTestPassword!2013'*/
         },
         products: [
+            /*{
+                url: `${config.baseUrl}/bl277m-bloch-pump-men-s-canvas-ballet-shoes`,
+                colorSwatchId: 93,
+                colorId: 4,
+                sizeSwatchId: 155,
+                sizeId: 404,
+                qty: 1
+            },
             {
-                url: `${config.baseUrl}/sdbae26-so-danca-mens-professional-split-sole-canvas-upper-stretch-insert.html`,
+                url: `${config.baseUrl}/bl277m-bloch-pump-men-s-canvas-ballet-shoes`,
+                colorSwatchId: 93,
+                colorId: 4,
+                sizeSwatchId: 155,
+                sizeId: 408,
+                qty: 1
+            },*/
+            {
+                url: `${config.baseUrl}/bl277m-bloch-pump-men-s-canvas-ballet-shoes.html`,
                 colorSwatchId: 93,
                 colorId: 4,
                 sizeSwatchId: 152,
-                sizeId: 563,
+                sizeId: 498,
                 qty: 1
             },
             {
@@ -65,7 +81,7 @@ const orders = () => [
                 colorSwatchId: 93,
                 colorId: 4,
                 sizeSwatchId: 152,
-                sizeId: 393,
+                sizeId: 499,
                 qty: 1
             }
         ]
@@ -111,13 +127,6 @@ const login = async(driver) => {
     } catch(err) {
     }
 
-    // Close chat
-    try {
-        const closeChat = await driver.wait(until.elementLocated(By.css('body > div > iframe #tawkchat-message-preview-close > .icon-close')), 5000, undefined, 1000)
-        await closeChat.click()
-    } catch(err) {
-    }
-    
     // Go to login page and login
     const loginUrl = await loginLink.getAttribute('href')
     await driver.navigate().to(loginUrl)
@@ -176,18 +185,18 @@ const checkout = async(driver, order) => {
     }, 30000, undefined, 1000)
 
     // Does the user have a shipping address
-    let hasShippingAddresses = true
+    let hasShippingAddresses = false
     try {
-        await shipping.findElements(By.css('.shipping-address-item'))
+        const shippingAddressItems = await shipping.findElements(By.css('.shipping-address-item'))
+        hasShippingAddresses = shippingAddressItems.length > 0
     } catch(err) {
-        hasShippingAddresses = false
     }
 
     // No Shipping address found. Enter a new one
     if (!hasShippingAddresses) {
         // Fill in the new shipping address form
         const shippingAddressForm = await driver.wait(until.elementLocated(By.id('shipping-new-address-form')), 10000, undefined, 1000)
-        await fillCheckoutAddressForm(shippingAddressForm, shippingAddress)
+        await fillCheckoutAddressForm(driver, shippingAddressForm, shippingAddress)
     } else {
         // Display the new shipping address modal
         const addShippingAddress = await shipping.findElement(By.css('.action.action-show-popup'))
@@ -197,7 +206,7 @@ const checkout = async(driver, order) => {
         const shippingAddressFormModal = await driver.wait(until.elementLocated(By.css('.modal-popup.modal-slide._inner-scroll._show')), 10000, undefined, 1000)
         const shippingAddressForm = await driver.wait(until.elementLocated(By.id('shipping-new-address-form')), 10000, undefined, 1000)
 
-        await fillCheckoutAddressForm(shippingAddressForm, shippingAddress, 'shipping-save-in-address-book')
+        await fillCheckoutAddressForm(driver, shippingAddressForm, shippingAddress, 'shipping-save-in-address-book')
 
         // Submit the new shipping address form
         const saveShippingAddressBtn = await shippingAddressFormModal.findElement(By.css('.action-save-address'))
@@ -246,6 +255,8 @@ const checkout = async(driver, order) => {
         }
     }, 30000, undefined, 1000)
 
+    await $.sleep(5000)
+
     // Execute payment type flow
     if (payment.type.toLowerCase() === 'paypal') {
         await paypalCheckout(driver, payment)
@@ -263,7 +274,7 @@ const checkout = async(driver, order) => {
 /**
  * Helper to complete the checkout address forms
  */
-const fillCheckoutAddressForm = async(addressForm, address, saveAddressId) => {
+const fillCheckoutAddressForm = async(driver, addressForm, address, saveAddressId) => {
     const country = await addressForm.findElement(By.name('country_id'))
     await $.selectByVisibleValue(country, address.country)
     await addressForm.findElement(By.name('firstname')).clear()
@@ -291,7 +302,22 @@ const fillCheckoutAddressForm = async(addressForm, address, saveAddressId) => {
     await addressForm.findElement(By.name('telephone')).sendKeys(address.phoneNumber)
 
     if (saveAddressId) {
-        await addressForm.findElement(By.id(saveAddressId)).click()
+        let saveAddress
+        try {
+            saveAddress = await addressForm.findElement(By.id(saveAddressId))
+        } catch(err) {
+        }
+
+        if (saveAddress) {
+            await driver.wait(async() => {
+                saveAddress = await addressForm.findElement(By.id(saveAddressId))
+                const saveAddressVisible = await saveAddress.isDisplayed()
+                const saveAddressEnabled = await saveAddress.isEnabled()
+                return saveAddressVisible && saveAddressEnabled
+            }, 30000, undefined, 1000)
+
+            await saveAddress.click()
+        }
     }
 }
 
@@ -326,34 +352,38 @@ const sagepayCheckout = async(driver, payment, billingAddress) => {
     if (billingAddress) {
         const enterBillingAddress = await activePaymentMethod.findElement(By.name('billing-address-same-as-shipping'))
         await enterBillingAddress.click()
+
+        await $.sleep(2000)
    
         // Wait until addresses dropdown loads
-        let newBillingAddress
-        await driver.wait(async() => {
-            newBillingAddress = await activePaymentMethod.findElement(By.name('billing_address_id'))
-            const newBillingAddressDisplayed = await newBillingAddress.isDisplayed()
-            return newBillingAddressDisplayed
-        }, 30000, undefined, 1000)
+        let billingAddressSelect
+        try {
+            billingAddressSelect = await activePaymentMethod.findElement(By.name('billing_address_id'))
+        } catch (err) {
+        }
+
+        if (billingAddressSelect) {
+            await $.selectByVisibleText(billingAddressSelect, 'New Address')
+            await $.sleep(1000)
+        }
    
-        await $.selectByVisibleText(newBillingAddress, 'New Address')
-        await $.sleep(1000)
-           
         // Wait until the billing address form loads
         let billingAddressForm
         await driver.wait(async() => {
             billingAddressForm = await activePaymentMethod.findElement(By.css('.billing-address-form > form'))
-            const billingAddressDisplayed = await billingAddressForm.isDisplayed()
-            return billingAddressDisplayed
+            const billingAddressVisible = await billingAddressForm.isDisplayed()
+            return billingAddressVisible
         }, 30000, undefined, 1000)
-   
-        await fillCheckoutAddressForm(billingAddressForm, billingAddress, 'billing-save-in-address-book-sagepaysuiteform')
+
+        // TODO: fix this check there are no multiple elements
+        await fillCheckoutAddressForm(driver, billingAddressForm, billingAddress, billingAddressSelect ? 'billing-save-in-address-book-sagepaysuiteform' : undefined)
    
         // Submit the new billing address form
         let saveBillingAddress
         await driver.wait(async() => {
             saveBillingAddress = await activePaymentMethod.findElement(By.css('.payment-method-billing-address .action.action-update'))
-            const saveBillingAddressDisplayed = await saveBillingAddress.isDisplayed()
-            return saveBillingAddressDisplayed
+            const saveBillingAddressVisible = await saveBillingAddress.isDisplayed()
+            return saveBillingAddressVisible
         }, 30000, undefined, 1000)
    
         await saveBillingAddress.click()
