@@ -47,53 +47,43 @@ const orders = () => [
             month: '09',
             year: '2020',
             cvc: '256'
+            
             /*type: 'Paypal',
             email: 'paypaltest@ids.co.uk',
             password: 'PPTestPassword!2013'*/
         },
         products: [
-            /*{
-                url: `${config.baseUrl}/bl277m-bloch-pump-men-s-canvas-ballet-shoes`,
-                colorSwatchId: 93,
-                colorId: 4,
-                sizeSwatchId: 155,
-                sizeId: 404,
-                qty: 1
-            },*/
             {
-                url: `${config.baseUrl}/bl277m-bloch-pump-men-s-canvas-ballet-shoes`,
-                colorSwatchId: 93,
-                colorId: 4,
-                sizeSwatchId: 155,
-                sizeId: 408,
+                url: `${config.baseUrl}/cz2038w-capezio-hanami-leather-ballet-shoe`,
+                color: 'Black',
+                size: 'EU 39 - UK 6 - US 9',
+                qty: 1
+            },
+            {
+                url: `${config.baseUrl}/cz2038w-capezio-hanami-leather-ballet-shoe`,
+                color: 'Black',
+                size: 'EU 40 - UK 6.5 - US 9.5',
                 qty: 1
             },/*
             {
                 url: `${config.baseUrl}/bl277m-bloch-pump-men-s-canvas-ballet-shoes.html`,
-                colorSwatchId: 93,
-                colorId: 4,
-                sizeSwatchId: 152,
-                sizeId: 498,
+                color: 'Black',
+                size: 'EU 39 - UK 6 - US 9',
                 qty: 1
             },
             {
                 url: `${config.baseUrl}/bl277m-bloch-pump-men-s-canvas-ballet-shoes.html`,
-                colorSwatchId: 93,
-                colorId: 4,
-                sizeSwatchId: 152,
-                sizeId: 499,
+                color: 'Black',
+                size: 'EU 39 - UK 6 - US 9',
                 qty: 1
             }*/
         ]
     }
 ]
 
-const getSwatchElemId = (type, swatchId, colorId) => `option-label-${type}-${swatchId}-item-${colorId}`
-
-const getCartItemCount = async(driver) => {
+const getCartItemCount = async(elem) => {
     try {
-        const counter = await driver.findElement(By.css('.counter-number'))
-        let counterNum = await counter.getText()
+        let counterNum = await elem.getText()
         return $.extractNumberFromText(counterNum)
     } catch (err) {
         return -1
@@ -438,6 +428,7 @@ const sagepayCheckout = async(driver, payment, billingAddress) => {
     await ccForm.findElement(By.name('securitycode')).sendKeys(payment.cvc)
    
     const submitCcForm = await ccForm.findElement(By.name('action'))
+    await $.scrollElementIntoView(driver, submitCcForm)
     await submitCcForm.click()
    
     // Sagepay payment order summary
@@ -449,6 +440,7 @@ const sagepayCheckout = async(driver, payment, billingAddress) => {
     const ccConfirmationForm = await driver.wait(until.elementLocated(By.css('#main > form')), 10000, undefined, 1000)
    
     const submitCcConfirmationForm = await ccConfirmationForm.findElement(By.name('action'))
+    await $.scrollElementIntoView(driver, submitCcConfirmationForm)
     await submitCcConfirmationForm.click()
 }
 
@@ -457,34 +449,49 @@ const sagepayCheckout = async(driver, payment, billingAddress) => {
  */
 const addProductToCart = async(driver, product) => {
     await driver.navigate().to(product.url)
-    const title = await driver.getTitle()
+
+    const addProductForm = await driver.findElement(By.id('product_addtocart_form'))
+
+    // Find the color swatches
+    const colorSwatchSelector = await driver.wait(until.elementLocated(By.css('.swatch-attribute.color')), 30000, undefined, 1000)
+    const colorSwatches = await colorSwatchSelector.findElements(By.css('.swatch-option'))
+
+    let colorSwatch
+    await $.asyncForEach(colorSwatches, async(colorSwatchItem) => {
+        if (!colorSwatch) {
+            const color = await colorSwatchItem.getAttribute('option-label')
+            if (color.toLowerCase() === product.color.toLowerCase()) {
+                colorSwatch = colorSwatchItem
+            }
+        }
+    })
 
     // Select the color
-    const colorSwatchElemId = getSwatchElemId('color', product.colorSwatchId, product.colorId)
-    const colorSwatch = await driver.wait(until.elementLocated(By.id(colorSwatchElemId)), 5000)
     const colorSwatchClassName = await colorSwatch.getAttribute('class')
     if (colorSwatchClassName.indexOf('selected') < 0) {
+        await $.scrollElementIntoView(driver, colorSwatch)
         await colorSwatch.click()
     }
-    
-    const selectedColorSwatch = await driver.wait(until.elementLocated(By.css('.swatch-attribute.color .selected')), 1000)
-    const selectedColorSwatchID = await selectedColorSwatch.getAttribute('id')
-    if (colorSwatchElemId !== selectedColorSwatchID) {
-        throw new Error(`Product color "${product.colorId}" could not be selected.`)
-    }
+
+    // Find the size swatches
+    const sizeSwatchSelector = await driver.wait(until.elementLocated(By.css('.swatch-attribute.size')), 30000, undefined, 1000)
+    const sizeSwatches = await sizeSwatchSelector.findElements(By.css('.swatch-option'))
+
+    let sizeSwatch
+    await $.asyncForEach(sizeSwatches, async(sizeSwatchItem) => {
+        if (!sizeSwatch) {
+            const size = await sizeSwatchItem.getAttribute('option-label')
+            if (size.toLowerCase() === product.size.toLowerCase()) {
+                sizeSwatch = sizeSwatchItem
+            }
+        }
+    })
 
     // Select the size
-    const sizeSwatchElemId = getSwatchElemId('size', product.sizeSwatchId, product.sizeId)
-    const sizeSwatch = await driver.findElement(By.id(sizeSwatchElemId))
     const sizeSwatchClassName = await sizeSwatch.getAttribute('class')
     if (sizeSwatchClassName.indexOf('selected') < 0) {
+        await $.scrollElementIntoView(driver, sizeSwatch)
         await sizeSwatch.click()
-    }
-
-    const selectedSizeSwatch = await driver.wait(until.elementLocated(By.css('.swatch-attribute.size .selected')), 1000)
-    const selectedSizeSwatchID = await selectedSizeSwatch.getAttribute('id')
-    if (sizeSwatchElemId !== selectedSizeSwatchID) {
-        throw new Error(`Product size "${product.sizeId}" could not be selected.`)
     }
 
     // Check the quantity
@@ -492,12 +499,18 @@ const addProductToCart = async(driver, product) => {
     stockQty = $.extractNumberFromText(stockQty)
 
     // Add to cart
-    let cartItemCount = await getCartItemCount(driver)
+    const counter = await driver.findElement(By.css('.counter-number'))
+    await $.scrollElementIntoView(driver, counter)
+
+    let cartItemCount = await getCartItemCount(counter)
 
     if (product.qty <= stockQty) {
-        await driver.findElement(By.id('qty')).clear()
-        await driver.findElement(By.id('qty')).sendKeys(`${product.qty}`)
-        const qty = await driver.findElement(By.id('qty')).getAttribute('value')
+        const qtyElem = await driver.findElement(By.id('qty'))
+
+        await $.scrollElementIntoView(driver, qtyElem)
+        await qtyElem.clear()
+        await qtyElem.sendKeys(`${product.qty}`)
+        const qty = await qtyElem.getAttribute('value')
         if (parseInt(qty) !== product.qty) {
             throw new Error('The product qty could not be set.')
         }
@@ -510,13 +523,11 @@ const addProductToCart = async(driver, product) => {
 
         await addToCart.submit()
 
-        await driver.wait(async(newDriver) => {
-            const newCartItemCount = await getCartItemCount(newDriver)
+        await driver.wait(async() => {
+            const newCartItemCount = await getCartItemCount(counter)
             return newCartItemCount === cartItemCount + product.qty 
         }, 30000, undefined, 1000)
     }
-
-    cartItemCount = await getCartItemCount(driver)
 }
 
 /**
@@ -569,6 +580,7 @@ const emptyCart = async(driver) => {
         cartItemLine = cartItemLines[0]
 
         const deleteAction = await cartItemLine.findElement(By.css('.action.action-delete'))
+        await $.scrollElementIntoView(driver, deleteAction)
         await deleteAction.click()
 
         await driver.wait(async(newDriver) => {
