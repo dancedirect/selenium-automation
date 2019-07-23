@@ -27,7 +27,7 @@ const login = async (driver, baseUrl, httpAuth, accountEmail, accountPassword) =
   }
 
   // Go to login page and login
-  const loginLink = await driver.findElement(By.css('body > .page-wrapper > .page-header > .header > .authorization-link > a'))
+  const loginLink = await driver.findElement(By.css('body > .page-wrapper > .page-header > .header  .authorization-link > a'))
   const loginUrl = await loginLink.getAttribute('href')
   await driver.navigate().to(loginUrl)
   title = await driver.getTitle()
