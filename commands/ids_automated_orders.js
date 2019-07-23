@@ -2,7 +2,7 @@ const { Builder, By, until } = require('selenium-webdriver')
 const _ = require('lodash')
 const { env, getSiteConfig } = require('../config')
 const $ = require('../utils')
-const { login, logout } = require('./automated_orders_common')
+const { login, logout, emptyCart } = require('./automated_orders_common')
 
 // Application config
 const config = {
@@ -40,6 +40,10 @@ const run = async (argv) => {
 
   try {
     await login(driver, baseUrl, httpAuth, accountEmail, accountPassword)
+
+    // Empty cart
+    await emptyCart(driver, baseUrl)
+
     await logout(driver, baseUrl)
 
     await driver.quit()
