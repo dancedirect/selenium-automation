@@ -169,6 +169,12 @@ const checkout = async (driver, order) => {
     return shippingMethodsCount > 0
   }, 30000, undefined, 1000)
 
+  // Select the first shipping method
+  const shippingMethodsAvailable = await shippingMethodsForm.findElements(By.css('.table-checkout-shipping-method > tbody .col.col-method'))
+  const firstShippingMethod = shippingMethodsAvailable[0]
+  await $.scrollElementIntoView(driver, firstShippingMethod)
+  await firstShippingMethod.click()
+
   // Go to the next step
   const buttons = await driver.findElement(By.id('shipping-method-buttons-container'))
   const next = await buttons.findElement(By.css('.continue'))
