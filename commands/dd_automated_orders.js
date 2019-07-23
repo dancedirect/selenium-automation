@@ -25,15 +25,6 @@ const capabilities = {
   'name': 'Automated order'
 }
 
-const getCartItemCount = async (elem) => {
-  try {
-    let counterNum = await elem.getText()
-    return $.extractNumberFromText(counterNum)
-  } catch (err) {
-    return -1
-  }
-}
-
 /**
  * Places the order
  */
@@ -394,7 +385,7 @@ const addProductToCart = async (driver, product) => {
   const counter = await driver.findElement(By.css('.counter-number'))
   await $.scrollElementIntoView(driver, counter)
 
-  let cartItemCount = await getCartItemCount(counter)
+  let cartItemCount = await $.getCartItemCount(counter)
 
   if (product.qty <= stockQty) {
     const qtyElem = await driver.findElement(By.id('qty'))
@@ -416,7 +407,7 @@ const addProductToCart = async (driver, product) => {
     await addToCart.submit()
 
     await driver.wait(async () => {
-      const newCartItemCount = await getCartItemCount(counter)
+      const newCartItemCount = await $.getCartItemCount(counter)
       return newCartItemCount === cartItemCount + product.qty
     }, 30000, undefined, 1000)
   }
