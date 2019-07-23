@@ -53,13 +53,13 @@ const orders = {
             {
               url: '/bl277m-bloch-pump-men-s-canvas-ballet-shoes.html',
               color: 'Black',
-              size: 'EU 39 - UK 6 - US 9',
+              size: 'EU 42 - UK 9.5',
               qty: 1,
             },
             {
                 url: '/bl277m-bloch-pump-men-s-canvas-ballet-shoes.html',
                 color: 'Black',
-                size: 'EU 39 - UK 6 - US 9',
+                size: 'EU 41.5 - UK 9',
                 qty: 1,
             },
           ],
@@ -100,7 +100,7 @@ const orders = {
           products: [
             {
               url: '/rvzeus-roch-valley-zeus-mens-ballroom-leather-shoe-1-2-inch-heel.html',
-              colour: 'Black',
+              color: 'Black',
               size: 'EU 45 - UK 10.5',
               shoeWidth: 'Regular',
               shoeHeight: '1.2 Inches Heel',
@@ -108,14 +108,14 @@ const orders = {
             },
             {
               url: '/bls0284-bloch-performa-stretch-canvas-split-sole-ballet-shoe.html',
-              colour: 'Sand',
+              color: 'Sand',
               size: 'EU 36 - UK 3',
               shoeWidth: 'C',
               qty: 1,
             },
             {
               url: '/bles0251l-bloch-elastosplit-x-canvas-width-c-ballet-shoe.html',
-              colour: 'Pink',
+              color: 'Pink',
               size: 'EU 37 - UK 4',
               qty: 1,
             },

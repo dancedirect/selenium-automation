@@ -25,9 +25,14 @@ const capabilities = {
   'name': 'Automated order'
 }
 
+const productAttrNameMap = {
+  colour: 'color'
+}
+
 const getProductAttrName = (name) => {
   let newName = name.replace('control bulk-input ', '').replace(' ', '')
-  return newName.charAt(0).toLowerCase() + newName.slice(1)
+  newName = newName.charAt(0).toLowerCase() + newName.slice(1)
+  return productAttrNameMap[newName] || newName
 }
 
 const getProductStock = (val) => {
@@ -72,7 +77,7 @@ const addProductToCart = async (driver, product) => {
   const addToCartForm = await driver.wait(until.elementLocated(By.id('product_addtocart_form')), 30000, undefined, 1000)
   await $.scrollElementIntoView(driver, addToCartForm)
   
-  // Find the First Dropdown
+  // Find the product attribute selects
   const productAttrSelects = await addToCartForm.findElements(By.css('.control.bulk-input'))
 
   let stockQty = 0
