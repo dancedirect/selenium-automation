@@ -67,5 +67,5 @@ process.on('uncaughtException', exitHandler.bind(null, {exit:true}));
 
 main()
     .catch((err) => {
-        console.error(utils.logError(err))
+        console.error(utils.logError(err.stack))
     })
