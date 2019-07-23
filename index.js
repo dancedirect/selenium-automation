@@ -8,7 +8,7 @@ const utils = require('./utils')
 
 const fileExists = promisify(fs.access);
 
-const {cmd} = argv
+const {cmd, target_site: targetSite} = argv
 
 let onExitCallback
 
@@ -17,7 +17,10 @@ const main = async() => {
         throw new Error('The "--cmd" argument is required.')
     }
 
-    const cmdPath = `./commands/${cmd}.js`
+    let cmdPath = `./commands/${cmd}.js`
+    if (!_.isEmpty(targetSite)) {
+        cmdPath = `./commands/${targetSite}_${cmd.replace(`${targetSite}_`, '')}.js`
+    }
 
     try {
         await fileExists(cmdPath)
