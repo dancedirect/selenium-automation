@@ -1,17 +1,9 @@
 const { Builder, By, until } = require('selenium-webdriver')
 const _ = require('lodash')
-const { env, getSiteConfig } = require('../config')
+const config = require('../config')
 const $ = require('../utils')
-const { login, logout, emptyCart } = require('./automated_orders_common')
+const { login, logout, emptyCart, checkout } = require('./automated_orders_common')
 const { getOrders } = require('../data/orders')
-
-// Application config
-const config = {
-  ...env
-}
-
-// Current site config
-let siteConfig
 
 // Input capabilities
 const capabilities = {
@@ -20,8 +12,8 @@ const capabilities = {
   'os': 'OS X',
   'os_version': 'Mojave',
   'resolution': '1280x960',
-  'browserstack.user': config.browserstackUsername,
-  'browserstack.key': config.browserstackAccessKey,
+  'browserstack.user': config.env.browserstackUsername,
+  'browserstack.key': config.env.browserstackAccessKey,
   'name': 'Automated order'
 }
 
@@ -68,9 +60,7 @@ const getProductAttrOption = async(select, textDesired) => {
 /**
  * Adds a product to the cart
  */
-const addProductToCart = async (driver, product) => {
-  const { url: baseUrl } = siteConfig
-
+const addProductToCart = async (driver, baseUrl, product) => {
   await driver.navigate().to(`${baseUrl}${product.url}`)
 
   // Wait until the form has been loaded
@@ -129,7 +119,7 @@ const run = async (argv) => {
     throw new Error('"target_site" is required.')
   }
 
-  siteConfig = getSiteConfig(targetSite, targetCountry)
+  const siteConfig = config.getSiteConfig(targetSite, targetCountry)
   const { url: baseUrl, httpAuth, accountEmail, accountPassword } = siteConfig
 
   const orders = getOrders(targetSite, targetCountry)
@@ -153,8 +143,11 @@ const run = async (argv) => {
 
     // Add products to basket
     await $.asyncForEach(order.products, async (product) => {
-      await addProductToCart(driver, product)
+      await addProductToCart(driver, baseUrl, product)
     })
+
+    // Go to checkout
+    await checkout(driver, baseUrl, order)
 
     await logout(driver, baseUrl)
 
