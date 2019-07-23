@@ -94,26 +94,33 @@ const orders = {
     uat: {
       uk: [
         {
-          url: '/rvzeus-roch-valley-zeus-mens-ballroom-leather-shoe-1-2-inch-heel.html',
-          color: 'Black',
-          size: 'EU 45 - UK 10.5',
-          width: 'Regular',
-          height: '1.2 Inches Heel',
-          qty: 1,
+          billingAddress: { ...billingAddress },
+          shippingAddress: { ...shippingAddress },
+          payment: { ...ccPayment },
+          products: [
+            {
+              url: '/rvzeus-roch-valley-zeus-mens-ballroom-leather-shoe-1-2-inch-heel.html',
+              colour: 'Black',
+              size: 'EU 45 - UK 10.5',
+              shoeWidth: 'Regular',
+              shoeHeight: '1.2 Inches Heel',
+              qty: 1,
+            },
+            {
+              url: '/bls0284-bloch-performa-stretch-canvas-split-sole-ballet-shoe.html',
+              colour: 'Sand',
+              size: 'EU 36 - UK 3',
+              shoeWidth: 'C',
+              qty: 1,
+            },
+            {
+              url: '/bles0251l-bloch-elastosplit-x-canvas-width-c-ballet-shoe.html',
+              colour: 'Pink',
+              size: 'EU 37 - UK 4',
+              qty: 1,
+            },
+          ],
         },
-        {
-          url: '/bls0284-bloch-performa-stretch-canvas-split-sole-ballet-shoe.html',
-          color: 'Sand',
-          size: 'EU 36 - UK 3',
-          width: 'C',
-          qty: 1,
-        },
-        {
-          url: '/bles0251l-bloch-elastosplit-x-canvas-width-c-ballet-shoe.html',
-          color: 'Pink',
-          size: 'EU 37 - UK 4',
-          qty: 1,
-        }
       ],
     },
   },
