@@ -26,6 +26,30 @@ const capabilities = {
 }
 
 /**
+ * Utilities
+ */
+const getProductAttrName = (name) => _.camelCase(name.replace('swatch-attribute ', '').replace(' ', ''))
+
+const getProductAttrOption = async(select, textDesired) => {
+  const options = await select.findElements(By.css('.swatch-option'))
+  let optionFound
+  await $.asyncForEach(options, async(option) => {
+    if (optionFound === undefined) {
+      let value = await option.getAttribute('option-label')
+      if (value.toLowerCase() === textDesired.toLowerCase()) {
+        optionFound = option
+      }
+    }
+  })
+
+  if (optionFound === undefined) {
+    throw new Error(`Option "${textDesired}" not found.`)
+  }
+
+  return optionFound
+}
+
+/**
  * Places the order
  */
 const checkout = async (driver, order) => {
@@ -335,47 +359,24 @@ const addProductToCart = async (driver, product) => {
 
   await driver.navigate().to(`${baseUrl}${product.url}`)
 
-  // Find the color swatches
-  const colorSwatchSelector = await driver.wait(until.elementLocated(By.css('.swatch-attribute.color')), 30000, undefined, 1000)
-  const colorSwatches = await colorSwatchSelector.findElements(By.css('.swatch-option'))
+  // Wait until the form has been loaded
+  const addToCartForm = await driver.wait(until.elementLocated(By.id('product_addtocart_form')), 30000, undefined, 1000)
+  await $.scrollElementIntoView(driver, addToCartForm)
 
-  let colorSwatch
-  await $.asyncForEach(colorSwatches, async (colorSwatchItem) => {
-    if (!colorSwatch) {
-      const color = await colorSwatchItem.getAttribute('option-label')
-      if (color.toLowerCase() === product.color.toLowerCase()) {
-        colorSwatch = colorSwatchItem
-      }
+  // Find the product attribute selects
+  const productAttrSelects = await addToCartForm.findElements(By.css('.swatch-attribute'))
+
+  await $.asyncForEach(productAttrSelects, async (productAttrSelect) => {
+    let productAttrName = await productAttrSelect.getAttribute('class')
+    productAttrName = getProductAttrName(productAttrName)
+
+    const productAttrOption = await getProductAttrOption(productAttrSelect, product[productAttrName])
+    const productAttrOptionClassName = await productAttrOption.getAttribute('class')
+    if (productAttrOptionClassName.indexOf('selected') < 0) {
+      await $.scrollElementIntoView(driver, productAttrOption)
+      await productAttrOption.click()
     }
   })
-
-  // Select the color
-  const colorSwatchClassName = await colorSwatch.getAttribute('class')
-  if (colorSwatchClassName.indexOf('selected') < 0) {
-    await $.scrollElementIntoView(driver, colorSwatch)
-    await colorSwatch.click()
-  }
-
-  // Find the size swatches
-  const sizeSwatchSelector = await driver.wait(until.elementLocated(By.css('.swatch-attribute.size')), 30000, undefined, 1000)
-  const sizeSwatches = await sizeSwatchSelector.findElements(By.css('.swatch-option'))
-
-  let sizeSwatch
-  await $.asyncForEach(sizeSwatches, async (sizeSwatchItem) => {
-    if (!sizeSwatch) {
-      const size = await sizeSwatchItem.getAttribute('option-label')
-      if (size.toLowerCase() === product.size.toLowerCase()) {
-        sizeSwatch = sizeSwatchItem
-      }
-    }
-  })
-
-  // Select the size
-  const sizeSwatchClassName = await sizeSwatch.getAttribute('class')
-  if (sizeSwatchClassName.indexOf('selected') < 0) {
-    await $.scrollElementIntoView(driver, sizeSwatch)
-    await sizeSwatch.click()
-  }
 
   // Check the quantity
   let stockQty = await driver.findElement(By.id('stock-qty')).getText()
@@ -388,7 +389,7 @@ const addProductToCart = async (driver, product) => {
   let cartItemCount = await $.getCartItemCount(counter)
 
   if (product.qty <= stockQty) {
-    const qtyElem = await driver.findElement(By.id('qty'))
+    const qtyElem = await addToCartForm.findElement(By.id('qty'))
 
     await $.scrollElementIntoView(driver, qtyElem)
     await qtyElem.clear()
@@ -398,7 +399,7 @@ const addProductToCart = async (driver, product) => {
       throw new Error('The product qty could not be set.')
     }
 
-    const addToCart = await driver.findElement(By.id('product-addtocart-button'))
+    const addToCart = await addToCartForm.findElement(By.id('product-addtocart-button'))
     const addToCartDisabled = await addToCart.getAttribute('disabled')
     if (addToCartDisabled === true) {
       throw new Error('Add to cart button is disabled.')
