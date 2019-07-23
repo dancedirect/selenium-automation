@@ -1,4 +1,5 @@
 const { By, until } = require('selenium-webdriver')
+const _ = require('lodash')
 const config = require('../config')
 const $ = require('../utils')
 
