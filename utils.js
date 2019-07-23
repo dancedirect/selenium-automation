@@ -1,4 +1,4 @@
-const {Builder, By, until} = require('selenium-webdriver')
+const { Builder, By, until } = require('selenium-webdriver')
 const config = require('./config')
 const clc = require('cli-color');
 
@@ -18,14 +18,14 @@ exports.logAlert = (msg) => {
     return clc.red(msg)
 }
 
-exports.asyncForEach = async(array, callback) => {
+exports.asyncForEach = async (array, callback) => {
     for (let index = 0; index < array.length; index++) {
         await callback(array[index], index, array)
     }
 }
 
 exports.extractNumberFromText = (text) => {
-    text = text.replace( /^\D+/g, '')
+    text = text.replace(/^\D+/g, '')
     let num = 0
     if (text !== '') {
         num = parseInt(text)
@@ -37,11 +37,11 @@ exports.extractNumberFromText = (text) => {
 exports.stringIncludes = (str, searchValue) => {
     str = (str || '').toLowerCase()
     searchValue = (searchValue || '').toLowerCase()
-    
+
     if (searchValue === str) {
         return true
     }
-    
+
     return searchValue.indexOf(str) > -1
 }
 
@@ -51,10 +51,10 @@ exports.sleep = (ms) => {
     })
 }
 
-exports.selectByVisibleValue = async(select, valueDesired) => {
+exports.selectByVisibleValue = async (select, valueDesired) => {
     const options = await select.findElements(By.tagName('option'))
     let optionFound
-    await exports.asyncForEach(options, async(option) => {
+    await exports.asyncForEach(options, async (option) => {
         if (optionFound === undefined) {
             const value = await option.getAttribute('value')
             if (value === valueDesired) {
@@ -70,10 +70,10 @@ exports.selectByVisibleValue = async(select, valueDesired) => {
     await optionFound.click()
 }
 
-exports.selectByVisibleText = async(select, textDesired) => {
+exports.selectByVisibleText = async (select, textDesired) => {
     const options = await select.findElements(By.tagName('option'))
     let optionFound
-    await exports.asyncForEach(options, async(option) => {
+    await exports.asyncForEach(options, async (option) => {
         if (optionFound === undefined) {
             const value = await option.getText()
             if (value.toLowerCase() === textDesired.toLowerCase()) {
@@ -89,10 +89,19 @@ exports.selectByVisibleText = async(select, textDesired) => {
     await optionFound.click()
 }
 
-exports.scrollElementIntoView = async(driver, elem) => {
+exports.scrollElementIntoView = async (driver, elem) => {
     await driver.executeScript("arguments[0].scrollIntoView()", elem);
     await driver.sleep(300);
 };
+
+exports.getCartItemCount = async (elem) => {
+    try {
+        let counterNum = await elem.getText()
+        return exports.extractNumberFromText(counterNum)
+    } catch (err) {
+        return -1
+    }
+}
 
 exports.log = (msg) => {
     if (config.env.debug) {
