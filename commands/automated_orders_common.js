@@ -3,7 +3,7 @@ const config = require('../config')
 const $ = require('../utils')
 
 /**
- * Executes the login flow to the specified site.
+ * Executes the login flow.
  */
 const login = async (driver, baseUrl, httpAuth, accountEmail, accountPassword) => {
   let homeUrl = baseUrl
@@ -45,4 +45,16 @@ const login = async (driver, baseUrl, httpAuth, accountEmail, accountPassword) =
   }
 }
 
+/**
+ * Executes the Logout flow.
+ */
+const logout = async (driver, baseUrl) => {
+  await driver.get(`${baseUrl}/customer/account/logout/`)
+  await driver.wait(async () => {
+    const title = await driver.getTitle()
+    return $.stringIncludes('Home', title)
+  }, 30000, undefined, 1000)
+}
+
 exports.login = login
+exports.logout = logout

@@ -1,8 +1,9 @@
-const { Builder, By, until, Actions } = require('selenium-webdriver')
+const { Builder, By, until } = require('selenium-webdriver')
 const _ = require('lodash')
 const { env, getSiteConfig } = require('../config')
 const $ = require('../utils')
 const { getOrders } = require('../data/orders')
+const { login, logout } = require('./automated_orders_common')
 
 // Application config
 const config = {
@@ -31,62 +32,6 @@ const getCartItemCount = async (elem) => {
   } catch (err) {
     return -1
   }
-}
-
-/**
- * Login the user 
- */
-const login = async (driver) => {
-  const { url: baseUrl, httpAuth, accountEmail, accountPassword } = siteConfig
-  let homeUrl = baseUrl
-  if (httpAuth) {
-    homeUrl = homeUrl.replace('://', `://${config.httpAuthUser}:${config.httpAuthPassword}@`)
-  }
-
-  // Go to home page
-  await driver.get(homeUrl)
-  const loginLink = await driver.findElement(By.css('body > .page-wrapper > .page-header .authorization-link > a'))
-  let title = await driver.getTitle()
-  if (!$.stringIncludes('Home', title)) {
-    throw new Error('Home page landing failed.')
-  }
-
-  // Accept cookies
-  try {
-    const cookieAllow = await driver.wait(until.elementLocated(By.id('btn-cookie-allow')), 5000, undefined, 1000)
-    await cookieAllow.click()
-  } catch (err) {
-  }
-
-  // Go to login page and login
-  const loginUrl = await loginLink.getAttribute('href')
-  await driver.navigate().to(loginUrl)
-  title = await driver.getTitle()
-  if (!$.stringIncludes('Login', title)) {
-    throw new Error('Login page landing failed.')
-  }
-
-  await driver.findElement(By.name('login[username]')).sendKeys(accountEmail)
-  await driver.findElement(By.name('login[password]')).sendKeys(accountPassword)
-  await driver.findElement(By.id('send2')).click()
-
-  await driver.navigate().to(`${baseUrl}/customer/account/`)
-  title = await driver.getTitle()
-  if (!$.stringIncludes('Dashboard', title)) {
-    throw new Error('Login Failed.')
-  }
-}
-
-/**
- * Logout the user
- */
-const logout = async (driver) => {
-  const { url: baseUrl } = siteConfig
-  await driver.get(`${baseUrl}/customer/account/logout/`)
-  await driver.wait(async () => {
-    const title = await driver.getTitle()
-    return $.stringIncludes('Home', title)
-  }, 30000, undefined, 1000)
 }
 
 /**
@@ -566,6 +511,7 @@ const run = async (argv) => {
   }
 
   siteConfig = getSiteConfig(targetSite, targetCountry)
+  const { url: baseUrl, httpAuth, accountEmail, accountPassword } = siteConfig
 
   const orders = getOrders(targetSite, targetCountry)
   if (orders.length < 1) {
@@ -578,7 +524,7 @@ const run = async (argv) => {
     .build()
 
   try {
-    await login(driver)
+    await login(driver, baseUrl, httpAuth, accountEmail, accountPassword)
 
     // Empty cart
     await emptyCart(driver)
@@ -595,7 +541,7 @@ const run = async (argv) => {
     await checkout(driver, order)
 
     // Logout
-    await logout(driver)
+    await logout(driver, baseUrl)
 
     await driver.quit()
   } catch (err) {
