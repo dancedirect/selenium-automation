@@ -108,3 +108,21 @@ exports.log = (msg) => {
         console.log(msg)
     }
 }
+
+exports.getRandomNumber = max => Math.floor(Math.random() * max)
+
+exports.getRandomArrItem = arr => arr[exports.getRandomNumber(arr.length)]
+
+exports.getUrlPath = url => url.replace(/^.*\/\/[^\/]+/, '')
+
+exports.getNormalizedUrl = (baseUrl, url) => {
+    if (url.indexOf('http') > 0) {
+        return url
+    }
+    
+    if (url[0] === '/') {
+        url = url.substring(1)
+    }
+
+    return `${baseUrl}/${url}`
+}
