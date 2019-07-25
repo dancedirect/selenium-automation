@@ -41,7 +41,47 @@ const getProductAttrOption = async(select, textDesired) => {
   return optionFound
 }
 
+const getRandomProductVariant = async (driver, productUrl) => {
+  await driver.navigate().to(productUrl)
+
+  // Wait until the form has been loaded
+  const addToCartForm = await driver.wait(until.elementLocated(By.id('product_addtocart_form')), 30000, undefined, 1000)
+  await $.scrollElementIntoView(driver, addToCartForm)
+  
+  // Find the product attribute selects and their options
+  const productAttrSelects = await addToCartForm.findElements(By.css('.control.bulk-input'))
+  const optionsByProductAttr = {}
+
+  await $.asyncForEach(productAttrSelects, async (productAttrSelect) => {
+    let productAttrName = await productAttrSelect.getAttribute('class')
+    productAttrName = getProductAttrName(productAttrName)
+    optionsByProductAttr[productAttrName] = []
+
+    const options = await productAttrSelect.findElements(By.tagName('option'))
+    await $.asyncForEach(options, async(option, i) => {
+      if (i > 0) {
+        let value = await option.getText()
+        value = value.replace(/ *\([^)]*\) */g, '')
+        optionsByProductAttr[productAttrName].push(value)
+      }
+    })
+  })
+
+  const product = {
+    url: productUrl,
+    qty: $.getRandomNumber(10)
+  }
+
+  const productAttrs = Object.keys(optionsByProductAttr)
+  productAttrs.forEach((productAttr) => {
+    product[productAttr] = $.getRandomArrItem(optionsByProductAttr[productAttr])
+  })
+  
+  return product
+}
+
 exports.productAttrNameMap = productAttrNameMap
 exports.getProductAttrName = getProductAttrName
 exports.getProductStock = getProductStock
 exports.getProductAttrOption = getProductAttrOption
+exports.getRandomProductVariant = getRandomProductVariant
