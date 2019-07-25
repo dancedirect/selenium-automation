@@ -1,3 +1,4 @@
+const fs = require('fs');
 const { By, until } = require('selenium-webdriver')
 const _ = require('lodash')
 const config = require('../config')
@@ -468,14 +469,14 @@ const getRandomCategoryProductUrl = async (driver, baseUrl, categoryUrl, getRand
   // Product list
   let productList
   try {
-    await driver.findElement(By.id('amasty-shopby-product-list'))
+    productList = await driver.findElement(By.id('amasty-shopby-product-list'))
   } catch(err) {
     return undefined
   }
 
   // Return if product list empty
   try {
-    await productList.findElement('.message.info.empty')
+    await productList.findElement(By.css('.message.info.empty'))
     return undefined
   } catch(err) {
   }
@@ -488,7 +489,7 @@ const getRandomCategoryProductUrl = async (driver, baseUrl, categoryUrl, getRand
     defaultPageSize = parseInt(await limiterOption.getAttribute('value'))
   }
 
-  const page = getRandomProductPageNumber(driver, defaultPageSize)
+  const page = await getRandomProductPageNumber(driver, defaultPageSize)
 
   // Go to the new category url
   if (page > 1) {
@@ -514,43 +515,31 @@ const getRandomCategoryProductUrl = async (driver, baseUrl, categoryUrl, getRand
   return productUrl
 }
 
-const getRandomProductVariant = async (driver, baseUrl, productUrl) => {
-  await driver.navigate().to($.getNormalizedUrl(baseUrl, productUrl))
-
-  // Wait until the form has been loaded
-  const addToCartForm = await driver.wait(until.elementLocated(By.id('product_addtocart_form')), 30000, undefined, 1000)
-  await $.scrollElementIntoView(driver, addToCartForm)
-  
-  // Find the product attribute selects and their options
-  const productAttrSelects = await addToCartForm.findElements(By.css('.control.bulk-input'))
-  const optionsByProductAttr = {}
-
-  await $.asyncForEach(productAttrSelects, async (productAttrSelect) => {
-    let productAttrName = await productAttrSelect.getAttribute('class')
-    productAttrName = getProductAttrName(productAttrName)
-    optionsByProductAttr[productAttrName] = []
-
-    const options = await productAttrSelect.findElements(By.tagName('option'))
-    await $.asyncForEach(options, async(option, i) => {
-      if (i > 0) {
-        let value = await option.getText()
-        value = value.replace(/ *\([^)]*\) */g, '')
-        optionsByProductAttr[productAttrName].push(value)
-      }
-    })
-  })
-
-  const product = {
-    url: productUrl,
-    qty: $.getRandomNumber(10)
+const createOrder = (products) => {
+  const order = {
+    billingAddress: {...config.env.billingAddress},
+    shippingAddress: {...config.env.shippingAddress},
+    payment: {...config.env.ccPayment},
+    products: [...products],
   }
 
-  const productAttrs = Object.keys(optionsByProductAttr)
-  productAttrs.forEach((productAttr) => {
-    product[productAttr] = $.getRandomArrItem(optionsByProductAttr[productAttr])
-  })
-  
-  return product
+  return order
+}
+
+const saveOrders = (orders, targetSite, targetCountry) => {
+  let rawData = ''
+  try {
+    rawData = fs.readFileSync('orders.json')
+  } catch (err) {
+  }
+
+  let data = {}
+  if (_.isEmpty(rawData)) {
+    data = JSON.parse(rawData);
+  }
+
+  data[targetSite][config.env.environment][targetCountry] = [...orders]
+  fs.writeFileSync('orders.json', JSON.stringify(data));
 }
 
 exports.login = login
@@ -559,4 +548,5 @@ exports.emptyCart = emptyCart
 exports.checkout = checkout
 exports.getCategoryUrls = getCategoryUrls
 exports.getRandomCategoryProductUrl = getRandomCategoryProductUrl
-exports.getRandomProductVariant = getRandomProductVariant
+exports.createOrder = createOrder
+exports.saveOrders = saveOrders
