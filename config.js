@@ -8,7 +8,7 @@ const config = {
     browserstackAccessKey: process.env.BROWSERSTACK_ACCESS_KEY,
     browserstackServer: 'http://hub-cloud.browserstack.com/wd/hub',
     debug: parseInt(process.env.DEBUG_ENABLED) === 1,
-    capabilities = {
+    capabilities: {
         'browserName': 'Chrome',
         'browser_version': '76.0 beta',
         'os': 'OS X',
