@@ -87,16 +87,18 @@ const run = async (argv) => {
     // Empty cart
     await emptyCart(driver, baseUrl)
 
-    // Get the order
-    const order = orders[0]
+    // Process the orders
+    for (let i = 0; i < orders.length; i++) {
+      const order = orders[i]
 
-    // Add products to basket
-    await $.asyncForEach(order.products, async (product) => {
-      await addProductToCart(driver, baseUrl, product)
-    })
+      // Add products to basket
+      await $.asyncForEach(order.products, async (product) => {
+        await addProductToCart(driver, baseUrl, product)
+      })
 
-    // Go to checkout
-    await checkout(driver, baseUrl, order)
+      // Go to checkout
+      await checkout(driver, baseUrl, order)
+    }
 
     await logout(driver, baseUrl)
 
