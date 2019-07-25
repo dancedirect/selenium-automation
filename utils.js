@@ -89,6 +89,21 @@ exports.selectByVisibleText = async (select, textDesired) => {
     await optionFound.click()
 }
 
+exports.selectedOption = async (select) => {
+    const options = await select.findElements(By.tagName('option'))
+    let optionFound
+    await exports.asyncForEach(options, async (option) => {
+        if (optionFound === undefined) {
+            const value = await option.getAttribute('selected')
+            if (value === true || value === 'true') {
+                optionFound = option
+            }
+        }
+    })
+
+    return optionFound
+}
+
 exports.scrollElementIntoView = async (driver, elem) => {
     await driver.executeScript("arguments[0].scrollIntoView()", elem);
     await driver.sleep(300);
@@ -116,10 +131,10 @@ exports.getRandomArrItem = arr => arr[exports.getRandomNumber(arr.length)]
 exports.getUrlPath = url => url.replace(/^.*\/\/[^\/]+/, '')
 
 exports.getNormalizedUrl = (baseUrl, url) => {
-    if (url.indexOf('http') > 0) {
+    if (url.indexOf('http') > -1) {
         return url
     }
-    
+
     if (url[0] === '/') {
         url = url.substring(1)
     }
