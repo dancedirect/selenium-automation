@@ -1,4 +1,4 @@
-const { By } = require('selenium-webdriver')
+const { By, until } = require('selenium-webdriver')
 const $ = require('../utils')
 
 const productAttrNameMap = {
@@ -56,7 +56,79 @@ const getRandomProductPageNumber = async(driver, defaultPageSize=12) => {
   }
 
   const totalPages = Math.ceil(totalItems / pageSize)
-  return totalPages > 1 ? $.getRandomNumber(totalPages) : totalPages
+  return totalPages > 1 ? $.getRandomNumber(1, totalPages) : totalPages
+}
+
+const getRandomProductVariant = async (driver, baseUrl, productUrl) => {
+  await driver.navigate().to($.getNormalizedUrl(baseUrl, productUrl))
+
+  // Wait until the form has been loaded
+  const addToCartForm = await driver.wait(until.elementLocated(By.id('product_addtocart_form')), 30000, undefined, 1000)
+  await $.scrollElementIntoView(driver, addToCartForm)
+  
+  // Find the product attribute selects and their options
+  const productAttrSelects = await addToCartForm.findElements(By.css('.control.bulk-input'))
+  const optionsByProductAttr = {}
+
+  await $.asyncForEach(productAttrSelects, async (productAttrSelect) => {
+    let productAttrName = await productAttrSelect.getAttribute('class')
+    productAttrName = getProductAttrName(productAttrName)
+    optionsByProductAttr[productAttrName] = []
+
+    const options = await productAttrSelect.findElements(By.tagName('option'))
+    await $.asyncForEach(options, async(option, i) => {
+      if (i > 0) {
+        let value = await option.getText()
+        value = value.replace(/ *\([^)]*\) */g, '')
+        optionsByProductAttr[productAttrName].push(value)
+
+        if (i === 1) {
+          await option.click()
+        }
+      }
+    })
+  })
+
+  let product
+  let tries = 0
+  while (!product && tries < 10) {
+    const tmpProduct = {
+      url: productUrl,
+      qty: $.getRandomNumber(1, 10)
+    }
+  
+    const productAttrs = Object.keys(optionsByProductAttr)
+    productAttrs.forEach((productAttr) => {
+      tmpProduct[productAttr] = $.getRandomArrItem(optionsByProductAttr[productAttr])
+    })
+
+    // Validate there is actually stock for this product 
+    let stockQty = 0
+    try {
+      await $.asyncForEach(productAttrSelects, async (productAttrSelect) => {
+        let productAttrName = await productAttrSelect.getAttribute('class')
+        productAttrName = getProductAttrName(productAttrName)
+      
+        const productAttrOption = await getProductAttrOption(productAttrSelect.findElement(By.css('select')), tmpProduct[productAttrName])
+        await productAttrOption.click()
+  
+        const productAttrValue = await productAttrOption.getText()
+        stockQty = getProductStock(productAttrValue)
+      })
+    } catch(err) {
+    }
+
+    if (stockQty > 0) {
+      product = {
+        ...tmpProduct,
+        qty: stockQty < tmpProduct.qty ? stockQty : tmpProduct.qty
+      }
+    }
+
+    tries++
+  }
+
+  return product
 }
 
 exports.productAttrNameMap = productAttrNameMap
@@ -64,3 +136,4 @@ exports.getProductAttrName = getProductAttrName
 exports.getProductStock = getProductStock
 exports.getProductAttrOption = getProductAttrOption
 exports.getRandomProductPageNumber = getRandomProductPageNumber
+exports.getRandomProductVariant = getRandomProductVariant
