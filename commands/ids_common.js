@@ -41,8 +41,8 @@ const getProductAttrOption = async(select, textDesired) => {
   return optionFound
 }
 
-const getRandomProductVariant = async (driver, productUrl) => {
-  await driver.navigate().to(productUrl)
+const getRandomProductVariant = async (driver, baseUrl, productUrl) => {
+  await driver.navigate().to($.getNormalizedUrl(baseUrl, productUrl))
 
   // Wait until the form has been loaded
   const addToCartForm = await driver.wait(until.elementLocated(By.id('product_addtocart_form')), 30000, undefined, 1000)
