@@ -6,7 +6,18 @@ const config = {
     httpAuthPassword: process.env.HTTP_AUTH_PASSWORD,
     browserstackUsername: process.env.BROWSERSTACK_USERNAME,
     browserstackAccessKey: process.env.BROWSERSTACK_ACCESS_KEY,
+    browserstackServer: 'http://hub-cloud.browserstack.com/wd/hub',
     debug: parseInt(process.env.DEBUG_ENABLED) === 1,
+    capabilities = {
+        'browserName': 'Chrome',
+        'browser_version': '76.0 beta',
+        'os': 'OS X',
+        'os_version': 'Mojave',
+        'resolution': '1280x960',
+        'browserstack.user': process.env.BROWSERSTACK_USERNAME,
+        'browserstack.key': process.env.BROWSERSTACK_ACCESS_KEY,
+        'name': 'Automated order',
+    },
     dd: {
         prod: {
             uk: {

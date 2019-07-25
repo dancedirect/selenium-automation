@@ -22,6 +22,7 @@ const login = async (driver, baseUrl, httpAuth, accountEmail, accountPassword) =
   // Accept cookies
   try {
     const cookieAllow = await driver.wait(until.elementLocated(By.id('btn-cookie-allow')), 5000, undefined, 1000)
+    await $.scrollElementIntoView(driver, cookieAllow)
     await cookieAllow.click()
   } catch (err) {
   }
@@ -438,7 +439,31 @@ const sagepayCheckout = async (driver, payment, billingAddress) => {
   await submitCcConfirmationForm.click()
 }
 
+/**
+ * Returns all the category urls found in the main menu.
+ */
+const getCategoryUrls = async (driver) => {
+  const mainMenu = await driver.findElement(By.id('megamenu'))
+  const menuTabs = await mainMenu.findElements(By.css('.tab-contents > .tab'))
+
+  const categoryUrls = []
+
+  await $.asyncForEach(menuTabs, async (menuTab) => {
+    const subCategoryColumns = await menuTab.findElements(By.css('.tab-inner > .menu-item > .column'))
+    await $.asyncForEach(subCategoryColumns, async (subCategoryColumn) => {
+      const subCategoryItems = await subCategoryColumn.findElements(By.css('.column-items > li > a'))
+      await $.asyncForEach(subCategoryItems, async (subCategoryItem) => {
+        const url  = await subCategoryItem.getAttribute('href')
+        categoryUrls.push(url)
+      })
+    })
+  })
+
+  return categoryUrls
+}
+
 exports.login = login
 exports.logout = logout
 exports.emptyCart = emptyCart
 exports.checkout = checkout
+exports.getCategoryUrls = getCategoryUrls

@@ -3,59 +3,8 @@ const _ = require('lodash')
 const config = require('../config')
 const $ = require('../utils')
 const { login, logout, emptyCart, checkout } = require('./automated_orders_common')
+const { getProductAttrName, getProductStock, getProductAttrOption } = require('./ids_common')
 const { getOrders } = require('../data/orders')
-
-// Input capabilities
-const capabilities = {
-  'browserName': 'Chrome',
-  'browser_version': '76.0 beta',
-  'os': 'OS X',
-  'os_version': 'Mojave',
-  'resolution': '1280x960',
-  'browserstack.user': config.env.browserstackUsername,
-  'browserstack.key': config.env.browserstackAccessKey,
-  'name': 'Automated order'
-}
-
-const productAttrNameMap = {
-  colour: 'color'
-}
-
-const getProductAttrName = (name) => {
-  let newName = name.replace('control bulk-input ', '').replace(' ', '')
-  newName = newName.charAt(0).toLowerCase() + newName.slice(1)
-  return productAttrNameMap[newName] || newName
-}
-
-const getProductStock = (val) => {
-  const regExp = /\(([^)]+)\)/
-  const matches = regExp.exec(val)
-  if (!matches || matches.length != 2) {
-    return false
-  }
-
-  return parseInt(matches[1])
-}
-
-const getProductAttrOption = async(select, textDesired) => {
-  const options = await select.findElements(By.tagName('option'))
-  let optionFound
-  await $.asyncForEach(options, async(option) => {
-      if (optionFound === undefined) {
-          let value = await option.getText()
-          value = value.replace(/ *\([^)]*\) */g, '').toLowerCase()
-          if (value === textDesired.toLowerCase()) {
-              optionFound = option
-          }
-      }
-  })
-
-  if (optionFound === undefined) {
-      throw new Error(`Option "${textDesired}" not found.`)
-  }
-
-  return optionFound
-}
 
 /**
  * Adds a product to the cart
@@ -128,8 +77,8 @@ const run = async (argv) => {
   }
 
   let driver = new Builder()
-    .usingServer('http://hub-cloud.browserstack.com/wd/hub')
-    .withCapabilities(capabilities)
+    .usingServer(config.env.browserstackServer)
+    .withCapabilities(config.env.capabilities)
     .build()
 
   try {

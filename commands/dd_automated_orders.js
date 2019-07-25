@@ -2,44 +2,9 @@ const { Builder, By, until } = require('selenium-webdriver')
 const _ = require('lodash')
 const config = require('../config')
 const $ = require('../utils')
-const { getOrders } = require('../data/orders')
 const { login, logout, emptyCart, checkout } = require('./automated_orders_common')
-
-// Input capabilities
-const capabilities = {
-  'browserName': 'Chrome',
-  'browser_version': '76.0 beta',
-  'os': 'OS X',
-  'os_version': 'Mojave',
-  'resolution': '1280x960',
-  'browserstack.user': config.env.browserstackUsername,
-  'browserstack.key': config.env.browserstackAccessKey,
-  'name': 'Automated order'
-}
-
-/**
- * Utilities
- */
-const getProductAttrName = (name) => _.camelCase(name.replace('swatch-attribute ', '').replace(' ', ''))
-
-const getProductAttrOption = async(select, textDesired) => {
-  const options = await select.findElements(By.css('.swatch-option'))
-  let optionFound
-  await $.asyncForEach(options, async(option) => {
-    if (optionFound === undefined) {
-      let value = await option.getAttribute('option-label')
-      if (value.toLowerCase() === textDesired.toLowerCase()) {
-        optionFound = option
-      }
-    }
-  })
-
-  if (optionFound === undefined) {
-    throw new Error(`Option "${textDesired}" not found.`)
-  }
-
-  return optionFound
-}
+const { getProductAttrName, getProductAttrOption } = require('./dd_common')
+const { getOrders } = require('../data/orders')
 
 /**
  * Adds a product to the cart
@@ -117,8 +82,8 @@ const run = async (argv) => {
   }
 
   let driver = new Builder()
-    .usingServer('http://hub-cloud.browserstack.com/wd/hub')
-    .withCapabilities(capabilities)
+    .usingServer(config.env.browserstackServer)
+    .withCapabilities(config.env.capabilities)
     .build()
 
   try {
