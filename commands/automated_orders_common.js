@@ -542,6 +542,21 @@ const saveOrders = (orders, targetSite, targetCountry) => {
   fs.writeFileSync('orders.json', JSON.stringify(data));
 }
 
+const getOrders = (targetSite, targetCountry) => {
+  let rawData = ''
+  try {
+    rawData = fs.readFileSync('orders.json')
+  } catch (err) {
+  }
+
+  let data = {}
+  if (!_.isEmpty(rawData)) {
+    data = JSON.parse(rawData);
+  }
+
+  return _.get(data, `${targetSite}.${config.env.environment}.${targetCountry}`) || []
+}
+
 exports.login = login
 exports.logout = logout
 exports.emptyCart = emptyCart

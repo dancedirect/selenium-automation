@@ -2,9 +2,8 @@ const { Builder, By, until } = require('selenium-webdriver')
 const _ = require('lodash')
 const config = require('../config')
 const $ = require('../utils')
-const { login, logout, emptyCart, checkout } = require('./automated_orders_common')
+const { login, logout, emptyCart, checkout, getOrders } = require('./automated_orders_common')
 const { getProductAttrName, getProductStock, getProductAttrOption } = require('./ids_common')
-const { getOrders } = require('../data/orders')
 
 /**
  * Adds a product to the cart
