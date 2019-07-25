@@ -534,7 +534,7 @@ const saveOrders = (orders, targetSite, targetCountry) => {
   }
 
   let data = {}
-  if (_.isEmpty(rawData)) {
+  if (!_.isEmpty(rawData)) {
     data = JSON.parse(rawData);
   }
 
