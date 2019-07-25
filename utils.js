@@ -124,9 +124,13 @@ exports.log = (msg) => {
     }
 }
 
-exports.getRandomNumber = max => Math.floor(Math.random() * max)
+exports.getRandomNumber = (min, max) => {
+    min = Math.ceil(min)
+    max = Math.floor(max)
+    return Math.floor(Math.random() * (max - min + 1)) + min
+}
 
-exports.getRandomArrItem = arr => arr[exports.getRandomNumber(arr.length)]
+exports.getRandomArrItem = arr => arr[exports.getRandomNumber(0, arr.length - 1)]
 
 exports.getUrlPath = url => url.replace(/^.*\/\/[^\/]+/, '')
 
