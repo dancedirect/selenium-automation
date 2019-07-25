@@ -41,6 +41,72 @@ const getProductAttrOption = async(select, textDesired) => {
   return optionFound
 }
 
+const getRandomCategoryProductUrl = async (driver, baseUrl, categoryUrl) => {
+  await driver.navigate().to($.getNormalizedUrl(baseUrl, categoryUrl))
+
+  // Product list
+  let productList
+  try {
+    await driver.findElement(By.id('amasty-shopby-product-list'))
+  } catch(err) {
+    return undefined
+  }
+
+  // Return if product list empty
+  try {
+    await productList.findElement('.message.info.empty')
+    return undefined
+  } catch(err) {
+  }
+
+  // Get the default page size
+  const limiter = await driver.findElement(By.id('limiter'))
+  const limiterOption = await $.selectedOption(limiter)
+  let limiterOptionValue = 12
+  if (limiterOption) {
+    limiterOptionValue = await limiterOption.getAttribute('value')
+  }
+
+  // Get the total number of pages
+  const toolBarAmount = await driver.findElement(By.id('toolbar-amount'))
+  const toolBarAmountParts = await toolBarAmount.findElements(By.css('.toolbar-number'))
+  let pageSize = parseInt(limiterOptionValue)
+  let totalItems = 0
+
+  if (toolBarAmountParts.length === 1) {
+    totalItems = await toolBarAmountParts[0].getText()
+  } else {
+    pageSize = await toolBarAmountParts[1].getText()
+    totalItems = await toolBarAmountParts[2].getText()
+  }
+
+  const totalPages = Math.ceil(totalItems / pageSize)
+  const page = totalPages > 1 ? $.getRandomNumber(totalPages) : totalPages
+
+  // Go to the new category url
+  if (page > 1) {
+    await driver.navigate().to($.getNormalizedUrl(baseUrl, `${categoryUrl}?p=${page}`))
+    try {
+      productList = await driver.findElement(By.id('amasty-shopby-product-list'))
+    } catch(err) {
+      return undefined
+    }
+  }
+
+  // Select a random product url
+  const products = await productList.findElements(By.css('.product-item'))
+  const totalProducts = products.length
+  if (totalProducts < 1) {
+    return undefined
+  }
+
+  const product = $.getRandomArrItem(products)
+  const productAnchor = await product.findElement(By.css('.product-item-photo'))
+  const productUrl = await productAnchor.getAttribute('href')
+
+  return productUrl
+}
+
 const getRandomProductVariant = async (driver, baseUrl, productUrl) => {
   await driver.navigate().to($.getNormalizedUrl(baseUrl, productUrl))
 
@@ -84,4 +150,5 @@ exports.productAttrNameMap = productAttrNameMap
 exports.getProductAttrName = getProductAttrName
 exports.getProductStock = getProductStock
 exports.getProductAttrOption = getProductAttrOption
+exports.getRandomCategoryProductUrl = getRandomCategoryProductUrl
 exports.getRandomProductVariant = getRandomProductVariant
