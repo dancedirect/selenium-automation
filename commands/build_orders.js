@@ -52,7 +52,6 @@ const run = async (argv) => {
         // Get a random product variant
         if (productUrl) {
           const product = await getRandomProductVariant(driver, baseUrl, productUrl)
-          console.log(product)
           if (product) {
             products.push(product)
           }
