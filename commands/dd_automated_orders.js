@@ -3,14 +3,13 @@ const _ = require('lodash')
 const config = require('../config')
 const $ = require('../utils')
 const { login, logout, emptyCart, checkout } = require('./automated_orders_common')
-const { getProductAttrName, getProductAttrOption } = require('./dd_common')
-const { getOrders } = require('../data/orders')
+const { getProductAttrName, getProductAttrOption, getOrders } = require('./dd_common')
 
 /**
  * Adds a product to the cart
  */
 const addProductToCart = async (driver, baseUrl, product) => {
-  await driver.navigate().to(`${baseUrl}${product.url}`)
+  await driver.navigate().to($.getNormalizedUrl(baseUrl, product.url))
 
   // Wait until the form has been loaded
   const addToCartForm = await driver.wait(until.elementLocated(By.id('product_addtocart_form')), 30000, undefined, 1000)
@@ -76,7 +75,7 @@ const run = async (argv) => {
   const siteConfig = config.getSiteConfig(targetSite, targetCountry)
   const { url: baseUrl, httpAuth, accountEmail, accountPassword } = siteConfig
 
-  const orders = getOrders(targetSite, targetCountry)
+  const orders = await getOrders(targetSite, targetCountry)
   if (orders.length < 1) {
     throw new Error(`Site ${targetSite}-${targetCountry} doesn't have any orders to process.`)
   }
@@ -92,18 +91,25 @@ const run = async (argv) => {
     // Empty cart
     await emptyCart(driver, baseUrl)
 
-    // Get the order
-    const order = orders[0]
+    // Process the orders
+    for (let i = 0; i < orders.length; i++) {
+      const order = orders[i]
 
-    // Add products to basket
-    await $.asyncForEach(order.products, async (product) => {
-      await addProductToCart(driver, baseUrl, product)
-    })
+      // Add products to basket
+      await $.asyncForEach(order.products, async (product) => {
+        await addProductToCart(driver, baseUrl, product)
+      })
 
-    // Go to checkout
-    await checkout(driver, baseUrl, order)
+      // Go to checkout
+      await checkout(driver, baseUrl, order)
 
-    // Logout
+      // Force login
+      if (i + 1 < orders.length) {
+        await logout(driver, baseUrl)
+        await login(driver, baseUrl, httpAuth, accountEmail, accountPassword)
+      }
+    }
+
     await logout(driver, baseUrl)
 
     await driver.quit()

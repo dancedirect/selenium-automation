@@ -526,7 +526,7 @@ const createOrder = (products) => {
   return order
 }
 
-const saveOrders = (orders, targetSite, targetCountry) => {
+const saveOrders = async (targetSite, targetCountry, orders) => {
   let rawData = ''
   try {
     rawData = fs.readFileSync('orders.json')
@@ -538,14 +538,15 @@ const saveOrders = (orders, targetSite, targetCountry) => {
     data = JSON.parse(rawData);
   }
 
-  data[targetSite][config.env.environment][targetCountry] = [...orders]
-  fs.writeFileSync('orders.json', JSON.stringify(data));
+  _.set(data, `${targetSite}.${config.env.environment}.${targetCountry}`, [...orders])
+
+  await fs.promises.writeFile('orders.json', JSON.stringify(data))
 }
 
-const getOrders = (targetSite, targetCountry) => {
+const getOrders = async (targetSite, targetCountry) => {
   let rawData = ''
   try {
-    rawData = fs.readFileSync('orders.json')
+    rawData = await fs.promises.readFile('orders.json')
   } catch (err) {
   }
 
@@ -565,3 +566,4 @@ exports.getCategoryUrls = getCategoryUrls
 exports.getRandomCategoryProductUrl = getRandomCategoryProductUrl
 exports.createOrder = createOrder
 exports.saveOrders = saveOrders
+exports.getOrders = getOrders

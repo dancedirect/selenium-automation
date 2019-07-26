@@ -97,6 +97,12 @@ const run = async (argv) => {
 
       // Go to checkout
       await checkout(driver, baseUrl, order)
+
+      // Force login
+      if (i + 1 < orders.length) {
+        await logout(driver, baseUrl)
+        await login(driver, baseUrl, httpAuth, accountEmail, accountPassword)
+      }
     }
 
     await logout(driver, baseUrl)

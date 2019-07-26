@@ -26,7 +26,7 @@ const run = async (argv) => {
     const categoryUrls = await getCategoryUrls(driver)
 
     const orders = []
-    const maxOrders = 10
+    const maxOrders = 2
     const maxOrderTries = 10
     let orderTries = 0
 
@@ -63,7 +63,7 @@ const run = async (argv) => {
     }
 
     if (orders.length > 0) {
-      saveOrders(orders)
+      await saveOrders(targetSite, targetCountry, orders)
     }
 
     await logout(driver, baseUrl)
