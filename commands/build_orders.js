@@ -1,11 +1,11 @@
-const { Builder, By, until } = require('selenium-webdriver')
+const { Builder } = require('selenium-webdriver')
 const _ = require('lodash')
 const config = require('../config')
 const $ = require('../utils')
 const { login, logout, getCategoryUrls, getRandomCategoryProductUrl, createOrder, saveOrders } = require('./common')
 
 const run = async (argv) => {
-  const { target_site: targetSite, target_country: targetCountry, max_orders: maxOrders = 10, max_products: maxProducts = 15 } = argv
+  const { target_site: targetSite, target_country: targetCountry, orders_file: ordersFile = 'orders.json', max_orders: maxOrders = 10, max_products: maxProducts = 15 } = argv
   if (_.isEmpty(targetSite)) {
     throw new Error('"target_site" is required.')
   }
@@ -27,6 +27,9 @@ const run = async (argv) => {
     .build()
 
   try {
+    // Empty the existing orders
+    await saveOrders($.getDataFile(ordersFile), targetSite, targetCountry, [])
+
     await login(driver, baseUrl, httpAuth, accountEmail, accountPassword)
 
     // Get the category urls 
@@ -62,14 +65,13 @@ const run = async (argv) => {
 
       // Create order
       if (products.length > 0) {
-        orders.push(createOrder(products))
+        // Save the order
+        const order = createOrder(products)
+        await saveOrder($.getDataFile(ordersFile), targetSite, targetCountry, order)
+        orders.push(order)
       }
 
       orderTries++
-    }
-
-    if (orders.length > 0) {
-      await saveOrders(targetSite, targetCountry, orders)
     }
 
     await logout(driver, baseUrl)

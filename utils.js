@@ -1,6 +1,9 @@
-const { Builder, By, until } = require('selenium-webdriver')
+const { By } = require('selenium-webdriver')
+const path = require('path')
 const config = require('./config')
 const clc = require('cli-color');
+
+exports.getDataFile = filename => resolve(`./data/${filename}`);
 
 exports.logInfo = (msg) => {
     return clc.green(msg)

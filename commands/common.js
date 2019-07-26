@@ -1,4 +1,4 @@
-const fs = require('fs');
+const fs = require('fs')
 const { By, until } = require('selenium-webdriver')
 const _ = require('lodash')
 const config = require('../config')
@@ -526,10 +526,28 @@ const createOrder = (products) => {
   return order
 }
 
-const saveOrders = async (targetSite, targetCountry, orders) => {
+const saveOrder = async (ordersFile, targetSite, targetCountry, order) => {
   let rawData = ''
   try {
-    rawData = fs.readFileSync('orders.json')
+    rawData = fs.readFileSync(ordersFile)
+  } catch (err) {
+  }
+
+  let data = {}
+  if (!_.isEmpty(rawData)) {
+    data = JSON.parse(rawData);
+  }
+
+  const orders = _.get(data, `${targetSite}.${config.env.environment}.${targetCountry}`, [])
+  orders.push(order)
+
+  await saveOrders(ordersFile, targetSite, targetCountry, orders)
+}
+
+const saveOrders = async (ordersFile, targetSite, targetCountry, orders) => {
+  let rawData = ''
+  try {
+    rawData = fs.readFileSync(ordersFile)
   } catch (err) {
   }
 
@@ -540,13 +558,13 @@ const saveOrders = async (targetSite, targetCountry, orders) => {
 
   _.set(data, `${targetSite}.${config.env.environment}.${targetCountry}`, [...orders])
 
-  await fs.promises.writeFile('orders.json', JSON.stringify(data))
+  await fs.promises.writeFile(ordersFile, JSON.stringify(data))
 }
 
-const getOrders = async (targetSite, targetCountry) => {
+const getOrders = async (ordersFile, targetSite, targetCountry) => {
   let rawData = ''
   try {
-    rawData = await fs.promises.readFile('orders.json')
+    rawData = await fs.promises.readFile(ordersFile)
   } catch (err) {
   }
 
@@ -565,5 +583,6 @@ exports.checkout = checkout
 exports.getCategoryUrls = getCategoryUrls
 exports.getRandomCategoryProductUrl = getRandomCategoryProductUrl
 exports.createOrder = createOrder
+exports.saveOrder = saveOrder
 exports.saveOrders = saveOrders
 exports.getOrders = getOrders

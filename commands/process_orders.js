@@ -1,11 +1,11 @@
-const { Builder, By, until } = require('selenium-webdriver')
+const { Builder } = require('selenium-webdriver')
 const _ = require('lodash')
 const config = require('../config')
 const $ = require('../utils')
 const { login, logout, emptyCart, checkout, getOrders } = require('./common')
 
 const run = async (argv) => {
-  const { target_site: targetSite, target_country: targetCountry } = argv
+  const { target_site: targetSite, target_country: targetCountry, orders_file: ordersFile = 'orders.json' } = argv
   if (_.isEmpty(targetSite)) {
     throw new Error('"target_site" is required.')
   }
@@ -22,7 +22,7 @@ const run = async (argv) => {
   const { url: baseUrl, httpAuth, accountEmail, accountPassword } = siteConfig
 
   // Get all the orders for the site and country
-  const orders = await getOrders(targetSite, targetCountry)
+  const orders = await getOrders($.getDataFile(ordersFile), targetSite, targetCountry)
   if (orders.length < 1) {
     throw new Error(`Site ${targetSite}-${targetCountry} doesn't have any orders to process.`)
   }

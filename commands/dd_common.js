@@ -99,9 +99,17 @@ const getRandomProductVariant = async (driver, baseUrl, productUrl) => {
 
   // Wait until the form has been loaded
   const addToCartForm = await driver.wait(until.elementLocated(By.id('product_addtocart_form')), 30000, undefined, 1000)
+
+  let stockQty
   try {
-    await driver.findElement(By.id('stock-qty'))
+    stockQty = await driver.findElement(By.id('stock-qty'))
   } catch (err) {
+    return undefined
+  }
+
+  // Check if there is no stock
+  stockQtyClassName = await stockQty.getAttribute('class')
+  if (stockQtyClassName.indexOf('stock-revelation-empty') > -1) {
     return undefined
   }
 
