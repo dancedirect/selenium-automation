@@ -3,7 +3,7 @@ const path = require('path')
 const config = require('./config')
 const clc = require('cli-color');
 
-exports.getDataFile = filename => resolve(`./data/${filename}`);
+exports.getDataFile = filename => path.resolve(`./data/${filename}`);
 
 exports.logInfo = (msg) => {
     return clc.green(msg)
