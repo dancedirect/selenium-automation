@@ -6,7 +6,7 @@ const { login, logout, getCategoryUrls, getRandomCategoryProductUrl, createOrder
 const { getRandomProductPageNumber, getRandomProductVariant } = require('./ids_common')
 
 const run = async (argv) => {
-  const { target_site: targetSite, target_country: targetCountry } = argv
+  const { target_site: targetSite, target_country: targetCountry, max_orders: maxOrders = 10, max_products: maxProducts = 15 } = argv
   if (_.isEmpty(targetSite)) {
     throw new Error('"target_site" is required.')
   }
@@ -26,17 +26,16 @@ const run = async (argv) => {
     const categoryUrls = await getCategoryUrls(driver)
 
     const orders = []
-    const maxOrders = 2
     const maxOrderTries = 10
     let orderTries = 0
 
     while (orders.length < maxOrders && orderTries < maxOrderTries) {
-      const maxProducts = $.getRandomNumber(1, 15)
+      const maxProductsNormalized = $.getRandomNumber(1, maxProducts)
       const maxProductTries = 50
       let productTries = 0
       const products = []
   
-      while (products.length < maxProducts && productTries < maxProductTries) {
+      while (products.length < maxProductsNormalized && productTries < maxProductTries) {
         // Get a random category url
         const categoryUrl = $.getRandomArrItem(categoryUrls)
   
