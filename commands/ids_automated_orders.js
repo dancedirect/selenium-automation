@@ -9,7 +9,7 @@ const { getProductAttrName, getProductStock, getProductAttrOption } = require('.
  * Adds a product to the cart
  */
 const addProductToCart = async (driver, baseUrl, product) => {
-  await driver.navigate().to(`${baseUrl}${product.url}`)
+  await driver.navigate().to($.getNormalizedUrl(baseUrl, product.url))
 
   // Wait until the form has been loaded
   const addToCartForm = await driver.wait(until.elementLocated(By.id('product_addtocart_form')), 30000, undefined, 1000)
@@ -70,7 +70,7 @@ const run = async (argv) => {
   const siteConfig = config.getSiteConfig(targetSite, targetCountry)
   const { url: baseUrl, httpAuth, accountEmail, accountPassword } = siteConfig
 
-  const orders = getOrders(targetSite, targetCountry)
+  const orders = await getOrders(targetSite, targetCountry)
   if (orders.length < 1) {
     throw new Error(`Site ${targetSite}-${targetCountry} doesn't have any orders to process.`)
   }
