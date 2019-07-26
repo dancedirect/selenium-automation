@@ -2,7 +2,7 @@ const { Builder } = require('selenium-webdriver')
 const _ = require('lodash')
 const config = require('../config')
 const $ = require('../utils')
-const { login, logout, getCategoryUrls, getRandomCategoryProductUrl, createOrder, saveOrders } = require('./common')
+const { login, logout, getCategoryUrls, getRandomCategoryProductUrl, createOrder, saveOrder, saveOrders } = require('./common')
 
 const run = async (argv) => {
   const { target_site: targetSite, target_country: targetCountry, orders_file: ordersFile = 'orders.json', mode = 'w', max_orders: maxOrders = 10, max_products: maxProducts = 15 } = argv
@@ -23,7 +23,10 @@ const run = async (argv) => {
 
   let driver = new Builder()
     .usingServer(config.env.browserstackServer)
-    .withCapabilities(config.env.capabilities)
+    .withCapabilities({
+      ...config.env.capabilities,
+      name: `build_orders/${ordersFile}`,
+    })
     .build()
 
   try {
@@ -71,6 +74,8 @@ const run = async (argv) => {
         const order = createOrder(products)
         await saveOrder($.getDataFile(ordersFile), targetSite, targetCountry, order)
         orders.push(order)
+
+        console.log(`Finished processing order #${orders.length}`)
       }
 
       orderTries++

@@ -29,7 +29,10 @@ const run = async (argv) => {
 
   let driver = new Builder()
     .usingServer(config.env.browserstackServer)
-    .withCapabilities(config.env.capabilities)
+    .withCapabilities({
+      ...config.env.capabilities,
+      name: `process_orders/${ordersFile}`,
+    })
     .build()
 
   try {
