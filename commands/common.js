@@ -558,7 +558,7 @@ const saveOrders = async (ordersFile, targetSite, targetCountry, orders) => {
 
   _.set(data, `${targetSite}.${config.env.environment}.${targetCountry}`, [...orders])
 
-  await fs.promises.writeFile(ordersFile, JSON.stringify(data))
+  await fs.promises.writeFile(ordersFile, JSON.stringify(data, null, 2))
 }
 
 const getOrders = async (ordersFile, targetSite, targetCountry) => {

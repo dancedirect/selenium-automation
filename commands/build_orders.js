@@ -5,7 +5,7 @@ const $ = require('../utils')
 const { login, logout, getCategoryUrls, getRandomCategoryProductUrl, createOrder, saveOrders } = require('./common')
 
 const run = async (argv) => {
-  const { target_site: targetSite, target_country: targetCountry, orders_file: ordersFile = 'orders.json', max_orders: maxOrders = 10, max_products: maxProducts = 15 } = argv
+  const { target_site: targetSite, target_country: targetCountry, orders_file: ordersFile = 'orders.json', mode = 'w', max_orders: maxOrders = 10, max_products: maxProducts = 15 } = argv
   if (_.isEmpty(targetSite)) {
     throw new Error('"target_site" is required.')
   }
@@ -28,7 +28,9 @@ const run = async (argv) => {
 
   try {
     // Empty the existing orders
-    await saveOrders($.getDataFile(ordersFile), targetSite, targetCountry, [])
+    if (mode === 'w') {
+      await saveOrders($.getDataFile(ordersFile), targetSite, targetCountry, [])
+    }
 
     await login(driver, baseUrl, httpAuth, accountEmail, accountPassword)
 
