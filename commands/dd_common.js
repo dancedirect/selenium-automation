@@ -39,6 +39,22 @@ const getRandomProductPageNumber = async(driver, pageSize) => {
 const addProductToCart = async (driver, baseUrl, product) => {
   await driver.navigate().to($.getNormalizedUrl(baseUrl, product.url))
 
+  let stockQty
+  try {
+    stockQty = await driver.findElement(By.id('stock-qty'))
+  } catch (err) {
+  }
+
+  // Check if there is no stock
+  if (!stockQty) {
+    return undefined
+  }
+
+  const stockQtyClassName = await stockQty.getAttribute('class')
+  if (stockQtyClassName.indexOf('stock-revelation-empty') > -1) {
+    return undefined
+  }
+
   // Wait until the form has been loaded
   const addToCartForm = await driver.wait(until.elementLocated(By.id('product_addtocart_form')), 30000, undefined, 1000)
   await $.scrollElementIntoView(driver, addToCartForm)
@@ -59,7 +75,7 @@ const addProductToCart = async (driver, baseUrl, product) => {
   })
 
   // Check the quantity
-  let stockQty = await driver.findElement(By.id('stock-qty')).getText()
+  stockQty = await driver.findElement(By.id('stock-qty')).getText()
   stockQty = $.extractNumberFromText(stockQty)
 
   // Add to cart
