@@ -76,13 +76,14 @@ const getRandomProductVariant = async (driver, baseUrl, productUrl) => {
     optionsByProductAttr[productAttrName] = []
 
     const options = await productAttrSelect.findElements(By.tagName('option'))
+    let optionClicked = false
     await $.asyncForEach(options, async(option, i) => {
-      if (i > 0) {
-        let value = await option.getText()
-        value = value.replace(/ *\([^)]*\) */g, '')
+      let value = await option.getText()
+      value = value.trim().replace(/ *\([^)]*\) */g, '')
+      if (value != '') {
         optionsByProductAttr[productAttrName].push(value)
-
-        if (i === 1) {
+        if (!optionClicked) {
+          optionClicked = true
           await option.click()
         }
       }
