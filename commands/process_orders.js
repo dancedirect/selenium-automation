@@ -19,7 +19,7 @@ const run = async (argv) => {
 
   // Get site config
   const siteConfig = config.getSiteConfig(targetSite, targetCountry)
-  const { url: baseUrl, httpAuth, accountEmail, accountPassword } = siteConfig
+  const { url: baseUrl, accountEmail, accountPassword } = siteConfig
 
   // Get all the orders for the site and country
   const orders = await getOrders($.getDataFile(ordersFile), targetSite, targetCountry)
@@ -27,7 +27,7 @@ const run = async (argv) => {
     throw new Error(`Site ${targetSite}-${targetCountry} doesn't have any orders to process.`)
   }
 
-  let driver = new Builder()
+  const driver = new Builder()
     .usingServer(config.env.browserstackServer)
     .withCapabilities({
       ...config.env.capabilities,
@@ -36,7 +36,7 @@ const run = async (argv) => {
     .build()
 
   try {
-    await login(driver, baseUrl, httpAuth, accountEmail, accountPassword)
+    await login(driver, baseUrl, config.env.httpAuthRequired, accountEmail, accountPassword)
 
     // Empty cart
     await emptyCart(driver, baseUrl)
@@ -56,7 +56,7 @@ const run = async (argv) => {
       // Force login
       if (i + 1 < orders.length) {
         await logout(driver, baseUrl)
-        await login(driver, baseUrl, httpAuth, accountEmail, accountPassword)
+        await login(driver, baseUrl, false, accountEmail, accountPassword)
       }
     }
 

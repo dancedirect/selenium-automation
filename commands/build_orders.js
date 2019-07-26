@@ -2,7 +2,7 @@ const { Builder } = require('selenium-webdriver')
 const _ = require('lodash')
 const config = require('../config')
 const $ = require('../utils')
-const { login, logout, getCategoryUrls, getRandomCategoryProductUrl, createOrder, saveOrder, saveOrders } = require('./common')
+const { login, logout, getCategoryUrls, getRandomCategoryProductUrl, createOrder, saveOrder, saveOrders, getOrders } = require('./common')
 
 const run = async (argv) => {
   const { target_site: targetSite, target_country: targetCountry, orders_file: ordersFile = 'orders.json', mode = 'w', max_orders: maxOrders = 10, max_products: maxProducts = 15 } = argv
@@ -19,7 +19,7 @@ const run = async (argv) => {
 
   // Get site config
   const siteConfig = config.getSiteConfig(targetSite, targetCountry)
-  const { url: baseUrl, httpAuth, accountEmail, accountPassword } = siteConfig
+  const { url: baseUrl, accountEmail, accountPassword } = siteConfig
 
   let driver = new Builder()
     .usingServer(config.env.browserstackServer)
@@ -30,17 +30,22 @@ const run = async (argv) => {
     .build()
 
   try {
-    // Empty the existing orders
-    if (mode === 'w') {
+    let orders = []
+  
+    if (mode === 'a') {
+      orders = await getOrders($.getDataFile(ordersFile), targetSite, targetCountry)
+    } else {
+       // Empty the existing orders
       await saveOrders($.getDataFile(ordersFile), targetSite, targetCountry, [])
     }
 
-    await login(driver, baseUrl, httpAuth, accountEmail, accountPassword)
+    await login(driver, baseUrl, config.env.httpAuthRequired, accountEmail, accountPassword)
 
     // Get the category urls 
     const categoryUrls = await getCategoryUrls(driver)
-   
-    const orders = []
+
+    // Get orders
+    
     const maxOrderTries = 10
     let orderTries = 0
 

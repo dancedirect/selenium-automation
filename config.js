@@ -44,6 +44,7 @@ const config = {
     environment: process.env.ENVIRONMENT,
     httpAuthUser: process.env.HTTP_AUTH_USER,
     httpAuthPassword: process.env.HTTP_AUTH_PASSWORD,
+    httpAuthRequired: !_.isEmpty(process.env.HTTP_AUTH_USER) && !_.isEmpty(process.env.HTTP_AUTH_PASSWORD),
     browserstackUsername: process.env.BROWSERSTACK_USERNAME,
     browserstackAccessKey: process.env.BROWSERSTACK_ACCESS_KEY,
     browserstackServer: 'http://hub-cloud.browserstack.com/wd/hub',
@@ -95,31 +96,26 @@ const config = {
                 url: 'https://ukdancedirectuat.gammapartners.com',
                 accountEmail: process.env.DD_ACCOUNT_EMAIL,
                 accountPassword: process.env.DD_ACCOUNT_PASSWORD,
-                httpAuth: true,
             },
             de: {
                 url: 'https://dedancedirectuat.gammapartners.com',
                 accountEmail: process.env.DD_ACCOUNT_EMAIL,
                 accountPassword: process.env.DD_ACCOUNT_PASSWORD,
-                httpAuth: true,
             },
             es: {
                 url: 'https://esdancedirectuat.gammapartners.com',
                 accountEmail: process.env.DD_ACCOUNT_EMAIL,
                 accountPassword: process.env.DD_ACCOUNT_PASSWORD,
-                httpAuth: true,
             },
             it: {
                 url: 'https://itdancedirectuat.gammapartners.com',
                 accountEmail: process.env.DD_ACCOUNT_EMAIL,
                 accountPassword: process.env.DD_ACCOUNT_PASSWORD,
-                httpAuth: true,
             },
             eu: {
                 url: 'https://roedancedirectuat.gammapartners.com',
                 accountEmail: process.env.DD_ACCOUNT_EMAIL,
                 accountPassword: process.env.DD_ACCOUNT_PASSWORD,
-                httpAuth: true,
             },
         },
         staging: {
@@ -200,43 +196,36 @@ const config = {
                 url: 'https://ukidsuat.gammapartners.com',
                 accountEmail: process.env.IDS_ACCOUNT_EMAIL,
                 accountPassword: process.env.IDS_ACCOUNT_PASSWORD,
-                httpAuth: true,
             },
             de: {
                 url: 'https://deidsuat.gammapartners.com',
                 accountEmail: process.env.IDS_ACCOUNT_EMAIL,
                 accountPassword: process.env.IDS_ACCOUNT_PASSWORD,
-                httpAuth: true,
             },
             es: {
                 url: 'https://esidsuat.gammapartners.com',
                 accountEmail: process.env.IDS_ACCOUNT_EMAIL,
                 accountPassword: process.env.IDS_ACCOUNT_PASSWORD,
-                httpAuth: true,
             },
             fr: {
                 url: 'https://fridsuat.gammapartners.com',
                 accountEmail: process.env.IDS_ACCOUNT_EMAIL,
                 accountPassword: process.env.IDS_ACCOUNT_PASSWORD,
-                httpAuth: true,
             },
             it: {
                 url: 'https://itidsuat.gammapartners.com',
                 accountEmail: process.env.IDS_ACCOUNT_EMAIL,
                 accountPassword: process.env.IDS_ACCOUNT_PASSWORD,
-                httpAuth: true,
             },
             au: {
                 url: 'https://auidsuat.gammapartners.com',
                 accountEmail: process.env.IDS_ACCOUNT_EMAIL,
                 accountPassword: process.env.IDS_ACCOUNT_PASSWORD,
-                httpAuth: true,
             },
             eu: {
                 url: 'https://roeidsuat.gammapartners.com',
                 accountEmail: process.env.IDS_ACCOUNT_EMAIL,
                 accountPassword: process.env.IDS_ACCOUNT_PASSWORD,
-                httpAuth: true,
             },
         },
         staging: {
@@ -283,7 +272,7 @@ const config = {
 const getSiteConfig = (targetSite, targetCountry) => {
     const siteConfig = _.get(config, `${targetSite}.${config.environment}.${targetCountry}`)
     if (!siteConfig) {
-        throw new Error(`Site ${targetSite}-${targetCountry} is not supported.`)
+        throw new Error(`Site ${config.environment} ${targetSite}-${targetCountry} is not supported.`)
     }
 
     return siteConfig

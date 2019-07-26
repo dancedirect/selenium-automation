@@ -104,11 +104,14 @@ const getRandomProductVariant = async (driver, baseUrl, productUrl) => {
   try {
     stockQty = await driver.findElement(By.id('stock-qty'))
   } catch (err) {
-    return undefined
   }
 
   // Check if there is no stock
-  stockQtyClassName = await stockQty.getAttribute('class')
+  if (!stockQty) {
+    return undefined
+  }
+
+  const stockQtyClassName = await stockQty.getAttribute('class')
   if (stockQtyClassName.indexOf('stock-revelation-empty') > -1) {
     return undefined
   }
