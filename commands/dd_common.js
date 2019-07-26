@@ -99,8 +99,9 @@ const getRandomProductVariant = async (driver, baseUrl, productUrl) => {
 
   // Wait until the form has been loaded
   const addToCartForm = await driver.wait(until.elementLocated(By.id('product_addtocart_form')), 30000, undefined, 1000)
-  const isFormDisplay = await addToCartForm.isDisplayed()
-  if (!isFormDisplay) {
+  try {
+    await driver.findElement(By.id('stock-qty'))
+  } catch (err) {
     return undefined
   }
 
