@@ -143,7 +143,7 @@ const emptyCart = async (driver, baseUrl) => {
  * Places the order
  */
 const checkout = async (driver, baseUrl, order) => {
-  const { billingAddress, shippingAddress, payment } = order
+  const { shippingAddress, billingAddress, payment } = order
 
   // Go to checkout page
   await driver.get(`${baseUrl}/checkout/`)
@@ -177,7 +177,7 @@ const checkout = async (driver, baseUrl, order) => {
     // Fill in the new shipping address form
     const shippingAddressForm = await driver.wait(until.elementLocated(By.id('shipping-new-address-form')), 10000, undefined, 1000)
     await fillCheckoutAddressForm(driver, shippingAddressForm, shippingAddress)
-  } else {
+  } else if (shippingAddress) {
     // Display the new shipping address modal
     const addShippingAddress = await shipping.findElement(By.css('.action.action-show-popup'))
     await addShippingAddress.click()
@@ -261,6 +261,10 @@ const checkout = async (driver, baseUrl, order) => {
  * Helper to complete the checkout address forms
  */
 const fillCheckoutAddressForm = async (driver, addressForm, address) => {
+  if (!address) {
+    throw new Error('A valid address must be specified.')
+  }
+
   const country = await addressForm.findElement(By.name('country_id'))
   await $.selectByVisibleValue(country, address.country)
   await addressForm.findElement(By.name('firstname')).clear()
