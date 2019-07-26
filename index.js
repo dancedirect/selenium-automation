@@ -18,9 +18,6 @@ const main = async() => {
     }
 
     let cmdPath = `./commands/${cmd}.js`
-    if (!_.isEmpty(targetSite)) {
-        cmdPath = `./commands/${targetSite}_${cmd.replace(`${targetSite}_`, '')}.js`
-    }
 
     try {
         await fileExists(cmdPath)

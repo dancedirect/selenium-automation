@@ -2,8 +2,7 @@ const { Builder, By, until } = require('selenium-webdriver')
 const _ = require('lodash')
 const config = require('../config')
 const $ = require('../utils')
-const { login, logout, getCategoryUrls, getRandomCategoryProductUrl, createOrder, saveOrders } = require('./automated_orders_common')
-const { getRandomProductPageNumber, getRandomProductVariant } = require('./ids_common')
+const { login, logout, getCategoryUrls, getRandomCategoryProductUrl, createOrder, saveOrders } = require('./common')
 
 const run = async (argv) => {
   const { target_site: targetSite, target_country: targetCountry, max_orders: maxOrders = 10, max_products: maxProducts = 15 } = argv
@@ -11,6 +10,14 @@ const run = async (argv) => {
     throw new Error('"target_site" is required.')
   }
 
+  if (_.isEmpty(targetCountry)) {
+    throw new Error('"target_country" is required.')
+  }
+
+  // Get common stuff
+  const { getRandomProductPageNumber, getRandomProductVariant } = require(`./${targetSite}_common`)
+
+  // Get site config
   const siteConfig = config.getSiteConfig(targetSite, targetCountry)
   const { url: baseUrl, httpAuth, accountEmail, accountPassword } = siteConfig
 
