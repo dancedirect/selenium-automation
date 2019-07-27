@@ -262,7 +262,7 @@ const checkout = async (driver, baseUrl, order, paymentCheckout) => {
 
   // Accept cookies
   try {
-    const cookieAllow = await driver.wait(until.elementLocated(By.id('btn-cookie-allow')), 5000, undefined, 1000)
+    const cookieAllow = await driver.wait(until.elementLocated(By.id('btn-cookie-allow')), 10000, undefined, 1000)
     await $.scrollElementIntoView(driver, cookieAllow)
     await cookieAllow.click()
   } catch (err) {
