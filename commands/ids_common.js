@@ -143,37 +143,47 @@ const addProductToCart = async (driver, baseUrl, product) => {
   // Wait until the form has been loaded
   const addToCartForm = await driver.wait(until.elementLocated(By.id('product_addtocart_form')), 30000, undefined, 1000)
   await $.scrollElementIntoView(driver, addToCartForm)
+
+  let qtyElem
   
   // Find the product attribute selects
   const productAttrSelects = await addToCartForm.findElements(By.css('.control.bulk-input'))
+  if (productAttrSelects.length > 0) {
+    let stockQty = 0
+    await $.asyncForEach(productAttrSelects, async (productAttrSelect) => {
+      let productAttrName = await productAttrSelect.getAttribute('class')
+      productAttrName = getProductAttrName(productAttrName)
 
-  let stockQty = 0
-  await $.asyncForEach(productAttrSelects, async (productAttrSelect) => {
-    let productAttrName = await productAttrSelect.getAttribute('class')
-    productAttrName = getProductAttrName(productAttrName)
-  
-    const productAttrOption = await getProductAttrOption(productAttrSelect.findElement(By.css('select')), product[productAttrName])
-    await productAttrOption.click()
+      const productAttrOption = await getProductAttrOption(productAttrSelect.findElement(By.css('select')), product[productAttrName])
+      await productAttrOption.click()
 
-    const productAttrValue = await productAttrOption.getText()
-    stockQty = getProductStock(productAttrValue)
-  })
+      const productAttrValue = await productAttrOption.getText()
+      stockQty = getProductStock(productAttrValue)
+    })
+
+    if (stockQty < 1) {
+      throw new Error('Product not in stock.')
+    }
+
+    if (product.qty > stockQty) {
+      product.qty = stockQty
+    }
+
+    qtyElem = await addToCartForm.findElement(By.id('qty_0'))
+  } else {
+    try {
+      qtyElem = await addToCartForm.findElement(By.id('qty'))
+    } catch (err) {
+      throw new Error('Product not in stock.')
+    }
+  }
 
   // Add to cart
   const counter = await driver.findElement(By.css('.counter-number'))
   await $.scrollElementIntoView(driver, counter)
-
+  
   let cartItemCount = await $.getCartItemCount(counter)
 
-  if (stockQty < 1) {
-    throw new Error('Product not in stock.')
-  }
-
-  if (product.qty > stockQty) {
-    product.qty = stockQty
-  }
-
-  const qtyElem = await addToCartForm.findElement(By.id('qty_0'))
   await $.scrollElementIntoView(driver, qtyElem)
   await qtyElem.clear()
   await qtyElem.sendKeys(`${product.qty}`)
