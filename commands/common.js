@@ -15,11 +15,12 @@ const login = async (driver, baseUrl, httpAuth, accountEmail, accountPassword) =
 
   // Go to home page
   await driver.get(homeUrl)
-  let title = await driver.getTitle()
-  if (!$.stringIncludes('Home', title)) {
+  try {
+    await $.isPageLoaded(driver, `${baseUrl}/`, true)
+  } catch(err) {
     throw new Error('Home page landing failed.')
   }
-
+ 
   // Accept cookies
   try {
     const cookieAllow = await driver.wait(until.elementLocated(By.id('btn-cookie-allow')), 5000, undefined, 1000)
@@ -32,8 +33,10 @@ const login = async (driver, baseUrl, httpAuth, accountEmail, accountPassword) =
   const loginLink = await driver.findElement(By.css('body > .page-wrapper > .page-header > .header  .authorization-link > a'))
   const loginUrl = await loginLink.getAttribute('href')
   await driver.navigate().to(loginUrl)
-  title = await driver.getTitle()
-  if (!$.stringIncludes('Login', title)) {
+
+  try {
+    await $.isPageLoaded(driver, '/customer/account/login/')
+  } catch(err) {
     throw new Error('Login page landing failed.')
   }
 
@@ -42,8 +45,10 @@ const login = async (driver, baseUrl, httpAuth, accountEmail, accountPassword) =
   await driver.findElement(By.id('send2')).click()
 
   await driver.navigate().to(`${baseUrl}/customer/account/`)
-  title = await driver.getTitle()
-  if (!$.stringIncludes('Dashboard', title)) {
+
+  try {
+    await $.isPageLoaded(driver, '/customer/account/')
+  } catch(err) {
     throw new Error('Login Failed.')
   }
 }
@@ -53,10 +58,11 @@ const login = async (driver, baseUrl, httpAuth, accountEmail, accountPassword) =
  */
 const logout = async (driver, baseUrl) => {
   await driver.get(`${baseUrl}/customer/account/logout/`)
-  await driver.wait(async () => {
-    const title = await driver.getTitle()
-    return $.stringIncludes('Home', title)
-  }, 30000, undefined, 1000)
+  try {
+    await $.isPageLoaded(driver, `${baseUrl}/`, true)
+  } catch(err) {
+    throw new Error('Login page landing failed.')
+  }
 }
 
 /**
@@ -139,14 +145,128 @@ const emptyCart = async (driver, baseUrl) => {
   }
 }
 
+const sagepayCheckout = async(driver, billingAddress) => {
+  // Select Sagepay
+  const sagepayMethod = await driver.findElement(By.id('sagepaysuiteform'))
+  await sagepayMethod.click()
+
+  // Submit payment form
+  const activePaymentMethod = await driver.findElement(By.css('.payment-method._active'))
+  if (billingAddress) {
+    const enterBillingAddress = await activePaymentMethod.findElement(By.name('billing-address-same-as-shipping'))
+    await enterBillingAddress.click()
+
+    await $.sleep(2000)
+
+    // Wait until addresses dropdown loads
+    let billingAddressSelect
+    try {
+      billingAddressSelect = await activePaymentMethod.findElement(By.name('billing_address_id'))
+    } catch (err) {
+    }
+
+    if (billingAddressSelect) {
+      await $.selectByVisibleText(billingAddressSelect, 'New Address')
+      await $.sleep(1000)
+    }
+
+    // Wait until the billing address form loads
+    let billingAddressForm
+    await driver.wait(async () => {
+      billingAddressForm = await activePaymentMethod.findElement(By.css('.billing-address-form > form'))
+      const billingAddressVisible = await billingAddressForm.isDisplayed()
+      return billingAddressVisible
+    }, 30000, undefined, 1000)
+
+    // TODO: fix this check there are no multiple elements
+    await fillCheckoutAddressForm(driver, billingAddressForm, billingAddress)
+
+    // Submit the new billing address form
+    let saveBillingAddress
+    await driver.wait(async () => {
+      saveBillingAddress = await activePaymentMethod.findElement(By.css('.payment-method-billing-address .action.action-update'))
+      const saveBillingAddressVisible = await saveBillingAddress.isDisplayed()
+      return saveBillingAddressVisible
+    }, 30000, undefined, 1000)
+
+    await saveBillingAddress.click()
+  }
+
+  // Wait until checkout button is enabled
+  let checkoutButton
+  await driver.wait(async () => {
+    checkoutButton = await activePaymentMethod.findElement(By.css('.action.checkout'))
+    const checkoutButtonClassName = await checkoutButton.getAttribute('class')
+    return checkoutButtonClassName.indexOf('disabled') < 1
+  }, 30000, undefined, 1000)
+
+  await checkoutButton.click()
+}
+
+/**
+ * Helper to complete the checkout address forms
+ */
+const fillCheckoutAddressForm = async (driver, addressForm, address) => {
+  if (!address) {
+    throw new Error('A valid address must be specified.')
+  }
+
+  const country = await addressForm.findElement(By.name('country_id'))
+  await $.selectByVisibleValue(country, address.country)
+  await addressForm.findElement(By.name('firstname')).clear()
+  await addressForm.findElement(By.name('firstname')).sendKeys(address.firstName)
+
+  await addressForm.findElement(By.name('lastname')).clear()
+  await addressForm.findElement(By.name('lastname')).sendKeys(address.lastName)
+
+  await addressForm.findElement(By.name('company')).clear()
+  await addressForm.findElement(By.name('company')).sendKeys(address.company)
+
+  await addressForm.findElement(By.name('street[0]')).clear()
+  await addressForm.findElement(By.name('street[0]')).sendKeys(address.address)
+
+  await addressForm.findElement(By.name('city')).clear()
+  await addressForm.findElement(By.name('city')).sendKeys(address.city)
+
+  await addressForm.findElement(By.name('region')).clear()
+  await addressForm.findElement(By.name('region')).sendKeys(address.region)
+
+  await addressForm.findElement(By.name('postcode')).clear()
+  await addressForm.findElement(By.name('postcode')).sendKeys(address.postalCode)
+
+  await addressForm.findElement(By.name('telephone')).clear()
+  await addressForm.findElement(By.name('telephone')).sendKeys(address.phoneNumber)
+
+  try {
+    const saveAddress = await addressForm.findElement(By.css('.field.choice > label'))
+    await $.scrollElementIntoView(driver, saveAddress)
+    await saveAddress.click();
+  } catch (err) {
+  }
+}
+
 /**
  * Places the order
  */
-const checkout = async (driver, baseUrl, order) => {
-  const { shippingAddress, billingAddress, payment } = order
+const checkout = async (driver, baseUrl, order, paymentCheckout) => {
+  const { shippingAddress, billingAddress } = order
+  let { payment } = order
+  if (!payment) {
+    payment = {
+      ...config.env.ccPayment
+    }
+  }
 
   // Go to checkout page
   await driver.get(`${baseUrl}/checkout/`)
+
+  // Accept cookies
+  try {
+    const cookieAllow = await driver.wait(until.elementLocated(By.id('btn-cookie-allow')), 5000, undefined, 1000)
+    await $.scrollElementIntoView(driver, cookieAllow)
+    await cookieAllow.click()
+  } catch (err) {
+  }
 
   // Wait for shipping section to load
   const shipping = await driver.wait(until.elementLocated(By.id('shipping')), 10000, undefined, 1000)
@@ -244,204 +364,33 @@ const checkout = async (driver, baseUrl, order) => {
   await $.sleep(5000)
 
   // Execute payment type flow
-  if (payment.type.toLowerCase() === 'paypal') {
-    await paypalCheckout(driver, payment)
-  } else {
-    await sagepayCheckout(driver, payment, billingAddress)
+  if (payment.type.toLowerCase() !== 'sagepay') {
+    throw new Error(`"${payment.type}" not supported.`)
   }
 
-  // Success page
+  await sagepayCheckout(driver, billingAddress)
+  await paymentCheckout(driver, payment, shippingAddress, billingAddress)
+
+  // Wait until the success page is loaded
   await driver.wait(async (newDriver) => {
-    const title = await newDriver.getTitle()
-    return $.stringIncludes('Success Page', title)
-  }, 60000, undefined, 1000)
-}
-
-/**
- * Helper to complete the checkout address forms
- */
-const fillCheckoutAddressForm = async (driver, addressForm, address) => {
-  if (!address) {
-    throw new Error('A valid address must be specified.')
-  }
-
-  const country = await addressForm.findElement(By.name('country_id'))
-  await $.selectByVisibleValue(country, address.country)
-  await addressForm.findElement(By.name('firstname')).clear()
-  await addressForm.findElement(By.name('firstname')).sendKeys(address.firstName)
-
-  await addressForm.findElement(By.name('lastname')).clear()
-  await addressForm.findElement(By.name('lastname')).sendKeys(address.lastName)
-
-  await addressForm.findElement(By.name('company')).clear()
-  await addressForm.findElement(By.name('company')).sendKeys(address.company)
-
-  await addressForm.findElement(By.name('street[0]')).clear()
-  await addressForm.findElement(By.name('street[0]')).sendKeys(address.address)
-
-  await addressForm.findElement(By.name('city')).clear()
-  await addressForm.findElement(By.name('city')).sendKeys(address.city)
-
-  await addressForm.findElement(By.name('region')).clear()
-  await addressForm.findElement(By.name('region')).sendKeys(address.region)
-
-  await addressForm.findElement(By.name('postcode')).clear()
-  await addressForm.findElement(By.name('postcode')).sendKeys(address.postalCode)
-
-  await addressForm.findElement(By.name('telephone')).clear()
-  await addressForm.findElement(By.name('telephone')).sendKeys(address.phoneNumber)
-
-  try {
-    const saveAddress = await addressForm.findElement(By.css('.field.choice > label'))
-    await $.scrollElementIntoView(driver, saveAddress)
-    await saveAddress.click();
-  } catch (err) {
-  }
-}
-
-/**
- * Paypal checkout flow
- */
-const paypalCheckout = async (driver, payment) => {
-  const paypalMethod = await driver.findElement(By.id('paypal_express'))
-  await paypalMethod.click()
-
-  const activePaymentMethod = await driver.findElement(By.css('.payment-method._active'))
-
-  // Wait until checkout button is enabled
-  let checkoutButton
-  await driver.wait(async () => {
-    checkoutButton = await activePaymentMethod.findElement(By.css('.action.checkout'))
-    const checkoutButtonClassName = await checkoutButton.getAttribute('class')
-    return checkoutButtonClassName.indexOf('disabled') < 1
-  }, 30000, undefined, 1000)
-}
-
-/**
- * Sagepay checkout flow
- */
-const sagepayCheckout = async (driver, payment, billingAddress) => {
-  // Select Sagepay
-  const sagepayMethod = await driver.findElement(By.id('sagepaysuiteform'))
-  await sagepayMethod.click()
-
-  // Submit payment form
-  const activePaymentMethod = await driver.findElement(By.css('.payment-method._active'))
-  if (billingAddress) {
-    const enterBillingAddress = await activePaymentMethod.findElement(By.name('billing-address-same-as-shipping'))
-    await enterBillingAddress.click()
-
-    await $.sleep(2000)
-
-    // Wait until addresses dropdown loads
-    let billingAddressSelect
-    try {
-      billingAddressSelect = await activePaymentMethod.findElement(By.name('billing_address_id'))
-    } catch (err) {
-    }
-
-    if (billingAddressSelect) {
-      await $.selectByVisibleText(billingAddressSelect, 'New Address')
-      await $.sleep(1000)
-    }
-
-    // Wait until the billing address form loads
-    let billingAddressForm
-    await driver.wait(async () => {
-      billingAddressForm = await activePaymentMethod.findElement(By.css('.billing-address-form > form'))
-      const billingAddressVisible = await billingAddressForm.isDisplayed()
-      return billingAddressVisible
-    }, 30000, undefined, 1000)
-
-    // TODO: fix this check there are no multiple elements
-    await fillCheckoutAddressForm(driver, billingAddressForm, billingAddress)
-
-    // Submit the new billing address form
-    let saveBillingAddress
-    await driver.wait(async () => {
-      saveBillingAddress = await activePaymentMethod.findElement(By.css('.payment-method-billing-address .action.action-update'))
-      const saveBillingAddressVisible = await saveBillingAddress.isDisplayed()
-      return saveBillingAddressVisible
-    }, 30000, undefined, 1000)
-
-    await saveBillingAddress.click()
-  }
-
-  // Wait until checkout button is enabled
-  let checkoutButton
-  await driver.wait(async () => {
-    checkoutButton = await activePaymentMethod.findElement(By.css('.action.checkout'))
-    const checkoutButtonClassName = await checkoutButton.getAttribute('class')
-    return checkoutButtonClassName.indexOf('disabled') < 1
+    const currentUrl = await newDriver.getCurrentUrl()
+    return currentUrl.indexOf('/checkout/onepage/success') > -1
   }, 30000, undefined, 1000)
 
-  await checkoutButton.click()
-
-  // Sagepay payment selection
-  await driver.wait(async (newDriver) => {
-    const title = await newDriver.getTitle()
-    return $.stringIncludes('Sage Pay - Payment Selection', title)
-  }, 30000, undefined, 1000)
-
-  // Wait for the payment list to load
-  const paymentMethods = await driver.wait(until.elementLocated(By.css('.payment-method-list')), 30000, undefined, 1000)
-  const paymentMethodsList = await paymentMethods.findElements(By.css('.payment-method-list__item'))
-  let paymentMethod
-
-  // Click on the first payment method
-  await $.asyncForEach(paymentMethodsList, async (paymentMethodItem) => {
-    let paymentMethodName = await paymentMethodItem.findElement(By.css('.payment-method__name'))
-    paymentMethodName = await paymentMethodName.getText()
-    if (paymentMethodName.toLowerCase() === payment.cardType.toLowerCase()) {
-      paymentMethod = paymentMethodItem
+  // Get the order number
+  const successMessages = await driver.findElements(By.css('.checkout-success > p'))
+  let orderNumber
+  await $.asyncForEach(successMessages, async(successMessage) => {
+    if (!orderNumber) {
+      const message = await successMessage.getText()
+      if (message.indexOf('#') > -1) {
+        const orderNumberParts = message.split(' ')
+        orderNumber = orderNumberParts[orderNumberParts.length - 1].replace('.', '')
+      }
     }
   })
 
-  if (!paymentMethod) {
-    throw new Error('Payment method not found.')
-  }
-
-  await paymentMethod.click()
-
-  // Sagepay payment card details
-  await driver.wait(async (newDriver) => {
-    const title = await newDriver.getTitle()
-    return $.stringIncludes('Sage Pay - Card Details', title)
-  }, 30000, undefined, 1000)
-
-  // Fill in and submit the credit card form
-  const ccForm = await driver.wait(until.elementLocated(By.css('#main > div > form')), 10000, undefined, 1000)
-
-  await ccForm.findElement(By.name('cardholder')).clear()
-  await ccForm.findElement(By.name('cardholder')).sendKeys(payment.name)
-
-  await ccForm.findElement(By.name('cardnumber')).clear()
-  await ccForm.findElement(By.name('cardnumber')).sendKeys(payment.card)
-
-  await ccForm.findElement(By.name('expirymonth')).clear()
-  await ccForm.findElement(By.name('expirymonth')).sendKeys(payment.month)
-
-  await ccForm.findElement(By.name('expiryyear')).clear()
-  await ccForm.findElement(By.name('expiryyear')).sendKeys(payment.year)
-
-  await ccForm.findElement(By.name('securitycode')).clear()
-  await ccForm.findElement(By.name('securitycode')).sendKeys(payment.cvc)
-
-  const submitCcForm = await ccForm.findElement(By.name('action'))
-  await $.scrollElementIntoView(driver, submitCcForm)
-  await submitCcForm.click()
-
-  // Sagepay payment order summary
-  await driver.wait(async (newDriver) => {
-    const title = await newDriver.getTitle()
-    return $.stringIncludes('Sage Pay - Order Summary', title)
-  }, 30000, undefined, 1000)
-
-  const ccConfirmationForm = await driver.wait(until.elementLocated(By.css('#main > form')), 10000, undefined, 1000)
-
-  const submitCcConfirmationForm = await ccConfirmationForm.findElement(By.name('action'))
-  await $.scrollElementIntoView(driver, submitCcConfirmationForm)
-  await submitCcConfirmationForm.click()
+  return orderNumber
 }
 
 /**
@@ -584,6 +533,7 @@ exports.login = login
 exports.logout = logout
 exports.emptyCart = emptyCart
 exports.checkout = checkout
+exports.fillCheckoutAddressForm = fillCheckoutAddressForm
 exports.getCategoryUrls = getCategoryUrls
 exports.getRandomCategoryProductUrl = getRandomCategoryProductUrl
 exports.createOrder = createOrder

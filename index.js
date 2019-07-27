@@ -1,4 +1,5 @@
 const path = require('path')
+
 require('dotenv').config({
     path: path.resolve(`./.env-${process.env.ENVIRONMENT || 'uat'}`)
 })
@@ -13,6 +14,8 @@ const fileExists = promisify(fs.access);
 
 const {cmd} = argv
 
+let mod
+
 const main = async() => {
     if (_.isEmpty(cmd)) {
         throw new Error('The "--cmd" argument is required.')
@@ -26,37 +29,25 @@ const main = async() => {
         throw new Error(`"${cmd}" is an invalid --cmd value.`)
     }
 
-    const mod = require(cmdPath)
-
+    mod = require(cmdPath)
     await mod.run(argv)
 }
 
-const exitHandler = (options, exitCode) => {
-    if (options.cleanup) {
-        console.log(utils.logInfo('cleaning up'))
-    }
+['SIGINT', 'SIGUSR1', 'SIGUSR2', 'uncaughtException'].forEach((signal) => {
+    process.on(signal, () => {
+        if (mod.onExit) {
+            console.log(utils.logWarning('Executing the onExit callback'))
+            mod.onExit()
+                .then(() => {
+                    process.exit(0)
+                })
+            }
+    })
+})
 
-    if (exitCode || exitCode === 0) {
-        console.log(utils.logAlert(exitCode))
-    }
-
-    if (options.exit) {
-        process.exit()
-    }
-}
-
-// Do something when app is closing
-process.on('exit', exitHandler.bind(null, {cleanup: true}))
-
-// Catches ctrl+c event
-process.on('SIGINT', exitHandler.bind(null, {exit: true}))
-
-// Catches "kill pid" (for example: nodemon restart)
-process.on('SIGUSR1', exitHandler.bind(null, {exit: true}))
-process.on('SIGUSR2', exitHandler.bind(null, {exit: true}))
-
-// Catches uncaught exceptions
-process.on('uncaughtException', exitHandler.bind(null, {exit:true}))
+process.on('exit', (exitCode) => {
+    console.log('Exiting command', exitCode)
+})
 
 main()
     .catch((err) => {

@@ -1,6 +1,7 @@
 const _ = require('lodash')
 
 const billingAddress = {
+    name: 'John Doe',
     firstName: 'John',
     lastName: 'Doe',
     company: 'DD',
@@ -13,6 +14,7 @@ const billingAddress = {
 }
 
 const shippingAddress = {
+    name: 'John Doe',
     firstName: 'John',
     lastName: 'Doe',
     company: 'DD',
@@ -29,6 +31,8 @@ const ccPayment = {
     cardType: 'MasterCard',
     card: '5404000000000001',
     name: 'John Doe',
+    firstName: 'John',
+    lastName: 'Doe',
     month: '09',
     year: '2020',
     cvc: '256',
@@ -41,19 +45,19 @@ const paypalPayment = {
 }
 
 const getAccountLogin = (targetSite, targetCountry) => {
-    let email = _.get(process.env, `${targetSite.toUpperCase()}_${targetCountry.toUpperCase()}_ACCOUNT_EMAIL`)
-    if (!email) {
-        email = _.get(process.env, `${targetSite.toUpperCase()}_ACCOUNT_EMAIL`)
+    let accountEmail = _.get(process.env, `${targetSite.toUpperCase()}_${targetCountry.toUpperCase()}_ACCOUNT_EMAIL`)
+    if (!accountEmail) {
+        accountEmail = _.get(process.env, `${targetSite.toUpperCase()}_ACCOUNT_EMAIL`)
     }
 
-    let password = _.get(process.env, `${targetSite.toUpperCase()}_${targetCountry.toUpperCase()}_ACCOUNT_PASSWORD,`)
-    if (!password) {
-        password = _.get(process.env, `${targetSite.toUpperCase()}_ACCOUNT_PASSWORD,`)
+    let accountPassword = _.get(process.env, `${targetSite.toUpperCase()}_${targetCountry.toUpperCase()}_ACCOUNT_PASSWORD`)
+    if (!accountPassword) {
+        accountPassword = _.get(process.env, `${targetSite.toUpperCase()}_ACCOUNT_PASSWORD`)
     }
 
     return {
-        email,
-        password,
+        accountEmail,
+        accountPassword,
     }
 }
 

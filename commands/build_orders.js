@@ -4,6 +4,15 @@ const config = require('../config')
 const $ = require('../utils')
 const { login, logout, getCategoryUrls, getRandomCategoryProductUrl, createOrder, saveOrder, saveOrders, getOrders } = require('./common')
 
+let driver
+
+const onExit = async () => {
+  if (driver) {
+    await driver.quit()
+    driver = undefined
+  }
+}
+
 const run = async (argv) => {
   const { target_site: targetSite, target_country: targetCountry, orders_file: ordersFile = 'orders.json', mode = 'w', max_orders: maxOrders = 10, max_products: maxProducts = 15 } = argv
   if (_.isEmpty(targetSite)) {
@@ -21,11 +30,11 @@ const run = async (argv) => {
   const siteConfig = config.getSiteConfig(targetSite, targetCountry)
   const { url: baseUrl, accountEmail, accountPassword } = siteConfig
 
-  let driver = new Builder()
+  driver = new Builder()
     .usingServer(config.env.browserstackServer)
     .withCapabilities({
       ...config.env.capabilities,
-      name: `build_orders/${ordersFile}`,
+      name: `build_orders/${targetSite}-${targetCountry}/${Math.floor(Date.now() / 1000)}/${ordersFile}`,
     })
     .build()
 
@@ -87,12 +96,12 @@ const run = async (argv) => {
     }
 
     await logout(driver, baseUrl)
-
-    await driver.quit()
+    await onExit()
   } catch (err) {
-    await driver.quit()
+    await onExit()
     throw err
   }
 }
 
 exports.run = run
+exports.onExit = onExit

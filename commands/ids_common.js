@@ -138,6 +138,8 @@ const getRandomProductVariant = async (driver, baseUrl, productUrl) => {
 const addProductToCart = async (driver, baseUrl, product) => {
   await driver.navigate().to($.getNormalizedUrl(baseUrl, product.url))
 
+  await $.sleep(5000)
+
   // Wait until the form has been loaded
   const addToCartForm = await driver.wait(until.elementLocated(By.id('product_addtocart_form')), 30000, undefined, 1000)
   await $.scrollElementIntoView(driver, addToCartForm)
@@ -163,29 +165,116 @@ const addProductToCart = async (driver, baseUrl, product) => {
 
   let cartItemCount = await $.getCartItemCount(counter)
 
-  if (product.qty <= stockQty) {
-    const qtyElem = await addToCartForm.findElement(By.id('qty_0'))
-    await $.scrollElementIntoView(driver, qtyElem)
-    await qtyElem.clear()
-    await qtyElem.sendKeys(`${product.qty}`)
-    const qty = await qtyElem.getAttribute('value')
-    if (parseInt(qty) !== product.qty) {
-      throw new Error('The product qty could not be set.')
-    }
-
-    const addToCart = await addToCartForm.findElement(By.id('product-addtocart-button'))
-    const addToCartDisabled = await addToCart.getAttribute('disabled')
-    if (addToCartDisabled === true) {
-      throw new Error('Add to cart button is disabled.')
-    }
-
-    await addToCart.submit()
-
-    await driver.wait(async () => {
-      const newCartItemCount = await $.getCartItemCount(counter)
-      return newCartItemCount === cartItemCount + product.qty
-    }, 30000, undefined, 1000)
+  if (stockQty < 1) {
+    throw new Error('Product not in stock.')
   }
+
+  if (product.qty > stockQty) {
+    product.qty = stockQty
+  }
+
+  const qtyElem = await addToCartForm.findElement(By.id('qty_0'))
+  await $.scrollElementIntoView(driver, qtyElem)
+  await qtyElem.clear()
+  await qtyElem.sendKeys(`${product.qty}`)
+  const qty = await qtyElem.getAttribute('value')
+  if (parseInt(qty) !== product.qty) {
+    throw new Error('The product qty could not be set.')
+  }
+
+  const addToCart = await addToCartForm.findElement(By.id('product-addtocart-button'))
+  const addToCartDisabled = await addToCart.getAttribute('disabled')
+  if (addToCartDisabled === true) {
+    throw new Error('Add to cart button is disabled.')
+  }
+
+  await addToCart.submit()
+
+  await driver.wait(async () => {
+    const newCartItemCount = await $.getCartItemCount(counter)
+    return newCartItemCount === cartItemCount + product.qty
+  }, 30000, undefined, 1000)
+}
+
+/**
+ * Sagepay payment flow
+ */
+const sagepayPayment = async (driver, payment) => {
+  // Make sure we landed in the card selection page
+  await driver.wait(async (newDriver) => {
+    const currentUrl = await newDriver.getCurrentUrl()
+    return currentUrl.indexOf('/gateway/service/cardselection') > -1
+  }, 30000, undefined, 1000)
+
+  let pageWrapper = await driver.findElement(By.id('pageWrapper'))
+  const forms = await pageWrapper.findElements(By.tagName('form'))
+
+  let paymentMethodForm
+  await $.asyncForEach(forms, async(form) => {
+    if (!paymentMethodForm) {
+      try {
+        const paymentMethod = await form.findElement(By.name('cardselected'))
+        const paymentMethodName = await paymentMethod.getAttribute('value')
+        if (paymentMethodName.toLowerCase() === payment.cardType.toLowerCase()) {
+          paymentMethodForm = form
+        }
+      } catch(err) {
+      }
+    }
+  })
+
+  const paymentMethodLink = await paymentMethodForm.findElement(By.tagName('a'))
+  await $.scrollElementIntoView(driver, paymentMethodLink)
+  await paymentMethodLink.click()
+
+  // Make sure we landed in the card details page
+  await driver.wait(async (newDriver) => {
+    const currentUrl = await newDriver.getCurrentUrl()
+    return currentUrl.indexOf('/gateway/service/carddetails') > -1
+  }, 30000, undefined, 1000)
+
+  pageWrapper = await driver.findElement(By.id('pageWrapper'))
+  const ccForm = await pageWrapper.findElement(By.name('carddetails'))
+
+  await ccForm.findElement(By.name('cardnumber')).clear()
+  await ccForm.findElement(By.name('cardnumber')).sendKeys(payment.card)
+
+  await ccForm.findElement(By.name('cardfirstnames')).clear()
+  await ccForm.findElement(By.name('cardfirstnames')).sendKeys(payment.firstName)
+
+  await ccForm.findElement(By.name('cardsurname')).clear()
+  await ccForm.findElement(By.name('cardsurname')).sendKeys(payment.lastName)
+
+  const expMonth = await ccForm.findElement(By.name('expirymonth'))
+  await $.selectByVisibleText(expMonth, payment.month)
+
+  const expYear = await ccForm.findElement(By.name('expiryyear'))
+  await $.selectByVisibleText(expYear, payment.year)
+
+  await ccForm.findElement(By.name('securitycode')).clear()
+  await ccForm.findElement(By.name('securitycode')).sendKeys(payment.cvc)
+
+  let proceedButton = await driver.findElement(By.id('proceedButton'))
+  await $.scrollElementIntoView(driver, proceedButton)
+  await proceedButton.click()
+
+  // Wait until the confirmation page is loaded
+  await driver.wait(async (newDriver) => {
+    const currentUrl = await newDriver.getCurrentUrl()
+    return currentUrl.indexOf('/gateway/service/cardconfirmation') > -1
+  }, 30000, undefined, 1000)
+
+  proceedButton = await driver.findElement(By.id('proceedButton'))
+  await $.scrollElementIntoView(driver, proceedButton)
+  await proceedButton.click()
+}
+
+const paymentCheckout = async(driver, payment) => {
+  if (payment.type.toLowerCase() !== 'sagepay') {
+    throw new Error(`"${payment.type}" not supported.`)
+  }
+
+  await sagepayPayment(driver, payment)
 }
 
 exports.productAttrNameMap = productAttrNameMap
@@ -195,3 +284,4 @@ exports.getProductAttrOption = getProductAttrOption
 exports.getRandomProductPageNumber = getRandomProductPageNumber
 exports.getRandomProductVariant = getRandomProductVariant
 exports.addProductToCart = addProductToCart
+exports.paymentCheckout = paymentCheckout

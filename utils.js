@@ -113,7 +113,7 @@ exports.selectedOption = async (select) => {
 exports.scrollElementIntoView = async (driver, elem) => {
     await driver.executeScript("arguments[0].scrollIntoView()", elem);
     await driver.sleep(300);
-};
+}
 
 exports.getCartItemCount = async (elem) => {
     try {
@@ -150,4 +150,26 @@ exports.getNormalizedUrl = (baseUrl, url) => {
     }
 
     return `${baseUrl}/${url}`
+}
+
+exports.getNameParts = (fullName) => {
+    const firstName = fullName.split(' ').slice(0, -1).join(' ')
+    const lastName = fullName.split(' ').slice(-1).join(' ')
+    return {
+        firstName,
+        lastName,
+    }
+}
+
+exports.isPageLoaded = async (driver, expectedUrl, exactMatch = false) => {
+    await driver.wait(async (newDriver) => {
+        const currentUrl = await newDriver.getCurrentUrl()
+        if (exactMatch) {
+            return currentUrl === expectedUrl
+        }
+
+        return currentUrl.indexOf(expectedUrl) > -1
+    }, 30000, undefined, 1000)
+
+    await exports.sleep(5000)
 }

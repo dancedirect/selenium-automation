@@ -1,6 +1,7 @@
 const { By, until } = require('selenium-webdriver')
 const _ = require('lodash')
 const $ = require('../utils')
+const { fillCheckoutAddressForm } = require('./common')
 
 const getProductAttrName = (name) => _.camelCase(name.replace('swatch-attribute ', '').replace(' ', ''))
 
@@ -47,12 +48,12 @@ const addProductToCart = async (driver, baseUrl, product) => {
 
   // Check if there is no stock
   if (!stockQty) {
-    return undefined
+    throw new Error('Product not in stock.')
   }
 
   const stockQtyClassName = await stockQty.getAttribute('class')
   if (stockQtyClassName.indexOf('stock-revelation-empty') > -1) {
-    return undefined
+    throw new Error('Product not in stock.')
   }
 
   // Wait until the form has been loaded
@@ -78,36 +79,42 @@ const addProductToCart = async (driver, baseUrl, product) => {
   stockQty = await driver.findElement(By.id('stock-qty')).getText()
   stockQty = $.extractNumberFromText(stockQty)
 
+  if (stockQty < 1) {
+    throw new Error('Product not in stock.')
+  }
+
+  if (product.qty > stockQty) {
+    product.qty = stockQty
+  }
+
   // Add to cart
   const counter = await driver.findElement(By.css('.counter-number'))
   await $.scrollElementIntoView(driver, counter)
 
   let cartItemCount = await $.getCartItemCount(counter)
 
-  if (product.qty <= stockQty) {
-    const qtyElem = await addToCartForm.findElement(By.id('qty'))
+  const qtyElem = await addToCartForm.findElement(By.id('qty'))
 
-    await $.scrollElementIntoView(driver, qtyElem)
-    await qtyElem.clear()
-    await qtyElem.sendKeys(`${product.qty}`)
-    const qty = await qtyElem.getAttribute('value')
-    if (parseInt(qty) !== product.qty) {
-      throw new Error('The product qty could not be set.')
-    }
-
-    const addToCart = await addToCartForm.findElement(By.id('product-addtocart-button'))
-    const addToCartDisabled = await addToCart.getAttribute('disabled')
-    if (addToCartDisabled === true) {
-      throw new Error('Add to cart button is disabled.')
-    }
-
-    await addToCart.submit()
-
-    await driver.wait(async () => {
-      const newCartItemCount = await $.getCartItemCount(counter)
-      return newCartItemCount === cartItemCount + product.qty
-    }, 30000, undefined, 1000)
+  await $.scrollElementIntoView(driver, qtyElem)
+  await qtyElem.clear()
+  await qtyElem.sendKeys(`${product.qty}`)
+  const qty = await qtyElem.getAttribute('value')
+  if (parseInt(qty) !== product.qty) {
+    throw new Error('The product qty could not be set.')
   }
+
+  const addToCart = await addToCartForm.findElement(By.id('product-addtocart-button'))
+  const addToCartDisabled = await addToCart.getAttribute('disabled')
+  if (addToCartDisabled === true) {
+    throw new Error('Add to cart button is disabled.')
+  }
+
+  await addToCart.submit()
+
+  await driver.wait(async () => {
+    const newCartItemCount = await $.getCartItemCount(counter)
+    return newCartItemCount === cartItemCount + product.qty
+  }, 30000, undefined, 1000)
 }
 
 const getRandomProductVariant = async (driver, baseUrl, productUrl) => {
@@ -210,8 +217,91 @@ const getRandomProductVariant = async (driver, baseUrl, productUrl) => {
   return product
 }
 
+/**
+ * Sagepay payment flow
+ */
+const sagepayPayment = async (driver, payment) => {
+  // Sagepay payment selection
+  try {
+    await $.isPageLoaded(driver, '/gateway/service/cardselection')
+  } catch(err) {
+    throw new Error('Sage Pay - Payment Selection landing failed.')
+  }
+
+  // Wait for the payment list to load
+  const paymentMethods = await driver.wait(until.elementLocated(By.css('.payment-method-list')), 30000, undefined, 1000)
+  const paymentMethodsList = await paymentMethods.findElements(By.css('.payment-method-list__item'))
+  let paymentMethod
+
+  // Click on the first payment method
+  await $.asyncForEach(paymentMethodsList, async (paymentMethodItem) => {
+    let paymentMethodName = await paymentMethodItem.findElement(By.css('.payment-method__name'))
+    paymentMethodName = await paymentMethodName.getText()
+    if (paymentMethodName.toLowerCase() === payment.cardType.toLowerCase()) {
+      paymentMethod = paymentMethodItem
+    }
+  })
+
+  if (!paymentMethod) {
+    throw new Error('Payment method not found.')
+  }
+
+  await paymentMethod.click()
+
+  // Sagepay payment card details
+  try {
+    await $.isPageLoaded(driver, '/gateway/service/carddetails')
+  } catch(err) {
+    throw new Error('Sage Pay - Card Details landing failed.')
+  }
+
+  // Fill in and submit the credit card form
+  const ccForm = await driver.wait(until.elementLocated(By.css('#main > div > form')), 10000, undefined, 1000)
+
+  await ccForm.findElement(By.name('cardholder')).clear()
+  await ccForm.findElement(By.name('cardholder')).sendKeys(payment.name)
+
+  await ccForm.findElement(By.name('cardnumber')).clear()
+  await ccForm.findElement(By.name('cardnumber')).sendKeys(payment.card)
+
+  await ccForm.findElement(By.name('expirymonth')).clear()
+  await ccForm.findElement(By.name('expirymonth')).sendKeys(payment.month)
+
+  await ccForm.findElement(By.name('expiryyear')).clear()
+  await ccForm.findElement(By.name('expiryyear')).sendKeys(payment.year)
+
+  await ccForm.findElement(By.name('securitycode')).clear()
+  await ccForm.findElement(By.name('securitycode')).sendKeys(payment.cvc)
+
+  const submitCcForm = await ccForm.findElement(By.name('action'))
+  await $.scrollElementIntoView(driver, submitCcForm)
+  await submitCcForm.click()
+
+  // Sagepay payment order summary
+  try {
+    await $.isPageLoaded(driver, '/gateway/service/cardconfirmation')
+  } catch(err) {
+    throw new Error('Sage Pay - Order Summary landing failed.')
+  }
+
+  const ccConfirmationForm = await driver.wait(until.elementLocated(By.css('#main > form')), 10000, undefined, 1000)
+
+  const submitCcConfirmationForm = await ccConfirmationForm.findElement(By.name('action'))
+  await $.scrollElementIntoView(driver, submitCcConfirmationForm)
+  await submitCcConfirmationForm.click()
+}
+
+const paymentCheckout = async(driver, payment) => {
+  if (payment.type.toLowerCase() !== 'sagepay') {
+    throw new Error(`"${payment.type}" not supported.`)
+  }
+
+  await sagepayPayment(driver, payment)
+}
+
 exports.getProductAttrName = getProductAttrName
 exports.getProductAttrOption = getProductAttrOption
 exports.addProductToCart = addProductToCart
 exports.getRandomProductPageNumber = getRandomProductPageNumber
 exports.getRandomProductVariant = getRandomProductVariant
+exports.paymentCheckout = paymentCheckout
