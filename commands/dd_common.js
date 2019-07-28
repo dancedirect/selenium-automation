@@ -157,12 +157,12 @@ const getRandomProductVariant = async (driver, baseUrl, productUrl) => {
 
   // Check if there is no stock element
   if (!stockQtyElem) {
-    return undefined
+    throw new Error('Product not in stock. "#stock-qty" / ".stock-revelation" element not found.')
   }
 
   const stockQtyElemClassName = await stockQtyElem.getAttribute('class')
   if (stockQtyElemClassName.indexOf('stock-revelation-empty') > -1) {
-    return undefined
+    throw new Error('Product not in stock. "Not in stock" message found.')
   }
 
   await $.scrollElementIntoView(driver, addToCartForm)
@@ -223,10 +223,6 @@ const getRandomProductVariant = async (driver, baseUrl, productUrl) => {
           }
         })
       } catch(err) {
-      }
-
-      if (isDisabled) {
-        return undefined
       }
     }
 

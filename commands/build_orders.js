@@ -14,7 +14,7 @@ const onExit = async () => {
 }
 
 const run = async (argv) => {
-  const { target_site: targetSite, target_country: targetCountry, orders_file: ordersFile = 'orders.json', mode = 'w', max_orders: maxOrders = 10, max_products: maxProducts = 15 } = argv
+  const { target_site: targetSite, target_country: targetCountry, orders_file: ordersFile = 'orders.json', mode = 'w', max_orders: maxOrders = 20, max_products: maxProducts = 15 } = argv
   if (_.isEmpty(targetSite)) {
     throw new Error('"target_site" is required.')
   }
@@ -59,23 +59,37 @@ const run = async (argv) => {
     let orderTries = 0
 
     while (orders.length < maxOrders && orderTries < maxOrderTries) {
+      const orderNumber = orders.length + 1
+      console.log(`Starting to build order #${orderNumber}.`)
       const maxProductsNormalized = $.getRandomNumber(1, maxProducts)
       const maxProductTries = 50
       let productTries = 0
       const products = []
+
+      console.log(`Adding ${maxProductsNormalized} products.`)
   
       while (products.length < maxProductsNormalized && productTries < maxProductTries) {
         // Get a random category url
         const categoryUrl = $.getRandomArrItem(categoryUrls)
+        console.log(`Looking for products in ${categoryUrl}`)
   
         // Get a random product url
         const productUrl = await getRandomCategoryProductUrl(driver, baseUrl, categoryUrl, getRandomProductPageNumber)
-  
+        
         // Get a random product variant
         if (productUrl) {
-          const product = await getRandomProductVariant(driver, baseUrl, productUrl)
-          if (product) {
-            products.push(product)
+          console.log(`Looking for products variants in ${productUrl}`)
+
+          try {
+            const product = await getRandomProductVariant(driver, baseUrl, productUrl)
+            if (product) {
+              console.log('Product variant added:', product)
+              console.log(product)
+              products.push(product)
+            }
+          } catch(err) {
+            console.log($.logError('Error in product:'))
+            console.log($.logError(err))
           }
         }
   
@@ -89,7 +103,8 @@ const run = async (argv) => {
         await saveOrder($.getDataFile(ordersFile), targetSite, targetCountry, order)
         orders.push(order)
 
-        console.log(`Finished processing order #${orders.length}`)
+        console.log(`Finished building order #${orderNumber}`)
+        console.log('')
       }
 
       orderTries++
