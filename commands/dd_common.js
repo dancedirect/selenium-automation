@@ -130,6 +130,10 @@ const addProductToCart = async (driver, baseUrl, product) => {
   }, 30000, undefined, 1000)
 }
 
+/**
+ * Gets a random product variant from a product page
+ * as long as there is stock available for the variant.
+ */
 const getRandomProductVariant = async (driver, baseUrl, productUrl) => {
   await driver.navigate().to($.getNormalizedUrl(baseUrl, productUrl))
 

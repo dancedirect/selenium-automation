@@ -21,6 +21,9 @@ const getProductStock = (val) => {
   return parseInt(matches[1])
 }
 
+/**
+ * Gets a product attribute option by name. 
+ */
 const getProductAttrOption = async(select, textDesired) => {
   const options = await select.findElements(By.tagName('option'))
   let optionFound
@@ -41,6 +44,9 @@ const getProductAttrOption = async(select, textDesired) => {
   return optionFound
 }
 
+/**
+ * Gets a random page number for a product page.
+ */
 const getRandomProductPageNumber = async(driver, defaultPageSize=12) => {
   // Get the total number of pages
   const toolBarAmount = await driver.findElement(By.id('toolbar-amount'))
@@ -59,12 +65,23 @@ const getRandomProductPageNumber = async(driver, defaultPageSize=12) => {
   return totalPages > 1 ? $.getRandomNumber(1, totalPages) : totalPages
 }
 
+/**
+ * Gets a random product variant from a product page
+ * as long as there is stock available for the variant.
+ */
 const getRandomProductVariant = async (driver, baseUrl, productUrl) => {
   await driver.navigate().to($.getNormalizedUrl(baseUrl, productUrl))
 
   // Wait until the form has been loaded
   const addToCartForm = await driver.wait(until.elementLocated(By.id('product_addtocart_form')), 30000, undefined, 1000)
   await $.scrollElementIntoView(driver, addToCartForm)
+
+  // Check if there is no stock element
+  let stockQtyElem
+  try {
+    stockQtyElem = await driver.findElement(By.css('.stock-revelation'))
+  } catch (err) {
+  }
   
   // Find the product attribute selects and their options
   const productAttrSelects = await addToCartForm.findElements(By.css('.control.bulk-input'))
@@ -97,26 +114,30 @@ const getRandomProductVariant = async (driver, baseUrl, productUrl) => {
       url: productUrl,
       qty: $.getRandomNumber(1, 10)
     }
-  
-    const productAttrs = Object.keys(optionsByProductAttr)
-    productAttrs.forEach((productAttr) => {
-      tmpProduct[productAttr] = $.getRandomArrItem(optionsByProductAttr[productAttr])
-    })
-
+    
     // Validate there is actually stock for this product 
     let stockQty = 0
-    try {
-      await $.asyncForEach(productAttrSelects, async (productAttrSelect) => {
-        let productAttrName = await productAttrSelect.getAttribute('class')
-        productAttrName = getProductAttrName(productAttrName)
-      
-        const productAttrOption = await getProductAttrOption(productAttrSelect.findElement(By.css('select')), tmpProduct[productAttrName])
-        await productAttrOption.click()
-  
-        const productAttrValue = await productAttrOption.getText()
-        stockQty = getProductStock(productAttrValue)
+    const productAttrs = Object.keys(optionsByProductAttr)
+    if (productAttrs.length > 0) {
+      productAttrs.forEach((productAttr) => {
+        tmpProduct[productAttr] = $.getRandomArrItem(optionsByProductAttr[productAttr])
       })
-    } catch(err) {
+
+      try {
+        await $.asyncForEach(productAttrSelects, async (productAttrSelect) => {
+          let productAttrName = await productAttrSelect.getAttribute('class')
+          productAttrName = getProductAttrName(productAttrName)
+        
+          const productAttrOption = await getProductAttrOption(productAttrSelect.findElement(By.css('select')), tmpProduct[productAttrName])
+          await productAttrOption.click()
+    
+          const productAttrValue = await productAttrOption.getText()
+          stockQty = getProductStock(productAttrValue)
+        })
+      } catch(err) {
+      }
+    } else if (stockQtyElem) {
+      stockQty = $.extractNumberFromText(stockQty)
     }
 
     if (stockQty > 0) {
@@ -133,7 +154,7 @@ const getRandomProductVariant = async (driver, baseUrl, productUrl) => {
 }
 
 /**
- * Adds a product to the cart
+ * Adds a product to the cart.
  */
 const addProductToCart = async (driver, baseUrl, product) => {
   await driver.navigate().to($.getNormalizedUrl(baseUrl, product.url))
@@ -144,12 +165,18 @@ const addProductToCart = async (driver, baseUrl, product) => {
   const addToCartForm = await driver.wait(until.elementLocated(By.id('product_addtocart_form')), 30000, undefined, 1000)
   await $.scrollElementIntoView(driver, addToCartForm)
 
+  let stockQty = 0
+  let stockQtyElem
   let qtyElem
-  
+
+  try {
+    stockQtyElem = await driver.findElement(By.css('.stock-revelation'))
+  } catch (err) {
+  }
+
   // Find the product attribute selects
   const productAttrSelects = await addToCartForm.findElements(By.css('.control.bulk-input'))
   if (productAttrSelects.length > 0) {
-    let stockQty = 0
     await $.asyncForEach(productAttrSelects, async (productAttrSelect) => {
       let productAttrName = await productAttrSelect.getAttribute('class')
       productAttrName = getProductAttrName(productAttrName)
@@ -161,29 +188,35 @@ const addProductToCart = async (driver, baseUrl, product) => {
       stockQty = getProductStock(productAttrValue)
     })
 
-    if (stockQty < 1) {
-      throw new Error('Product not in stock.')
+    try {
+      qtyElem = await addToCartForm.findElement(By.id('qty_0'))
+    } catch (err) {
+      throw new Error('Product not in stock. "qty_0" element not found.')
     }
+  } else if (stockQtyElem) {
+    stockQty = $.extractNumberFromText(stockQtyElem)
 
-    if (product.qty > stockQty) {
-      product.qty = stockQty
-    }
-
-    qtyElem = await addToCartForm.findElement(By.id('qty_0'))
-  } else {
     try {
       qtyElem = await addToCartForm.findElement(By.id('qty'))
     } catch (err) {
-      throw new Error('Product not in stock.')
+      throw new Error('Product not in stock. "qty" element not found.')
     }
   }
 
-  // Add to cart
+  if (stockQty < 1) {
+    throw new Error('Product not in stock. "0 stock available".')
+  }
+
+  if (product.qty > stockQty) {
+    product.qty = stockQty
+  }
+
+  // Get current cart items count
   const counter = await driver.findElement(By.css('.counter-number'))
   await $.scrollElementIntoView(driver, counter)
-  
   let cartItemCount = await $.getCartItemCount(counter)
 
+  // Add to cart
   await $.scrollElementIntoView(driver, qtyElem)
   await qtyElem.clear()
   await qtyElem.sendKeys(`${product.qty}`)
@@ -200,6 +233,7 @@ const addProductToCart = async (driver, baseUrl, product) => {
 
   await addToCart.submit()
 
+  // Check the product cart is updated
   await driver.wait(async () => {
     const newCartItemCount = await $.getCartItemCount(counter)
     return newCartItemCount === cartItemCount + product.qty
@@ -207,15 +241,16 @@ const addProductToCart = async (driver, baseUrl, product) => {
 }
 
 /**
- * Sagepay payment flow
+ * Sagepay payment flow.
  */
 const sagepayPayment = async (driver, payment) => {
   // Make sure we landed in the card selection page
-  await driver.wait(async (newDriver) => {
-    const currentUrl = await newDriver.getCurrentUrl()
-    return currentUrl.indexOf('/gateway/service/cardselection') > -1
-  }, 30000, undefined, 1000)
-
+  try {
+    await $.isPageLoaded(driver, '/gateway/service/cardselection')
+  } catch (err) {
+    throw new Error('Sage Pay - Payment Selection landing failed.')
+  }
+  
   let pageWrapper = await driver.findElement(By.id('pageWrapper'))
   const forms = await pageWrapper.findElements(By.tagName('form'))
 
@@ -238,10 +273,11 @@ const sagepayPayment = async (driver, payment) => {
   await paymentMethodLink.click()
 
   // Make sure we landed in the card details page
-  await driver.wait(async (newDriver) => {
-    const currentUrl = await newDriver.getCurrentUrl()
-    return currentUrl.indexOf('/gateway/service/carddetails') > -1
-  }, 30000, undefined, 1000)
+  try {
+    await $.isPageLoaded(driver, '/gateway/service/carddetails')
+  } catch (err) {
+    throw new Error('Sage Pay - Card Details landing failed.')
+  }
 
   pageWrapper = await driver.findElement(By.id('pageWrapper'))
   const ccForm = await pageWrapper.findElement(By.name('carddetails'))
@@ -269,10 +305,11 @@ const sagepayPayment = async (driver, payment) => {
   await proceedButton.click()
 
   // Wait until the confirmation page is loaded
-  await driver.wait(async (newDriver) => {
-    const currentUrl = await newDriver.getCurrentUrl()
-    return currentUrl.indexOf('/gateway/service/cardconfirmation') > -1
-  }, 30000, undefined, 1000)
+  try {
+    await $.isPageLoaded(driver, '/gateway/service/cardconfirmation')
+  } catch(err) {
+    throw new Error('Sage Pay - Order Summary landing failed.')
+  }
 
   proceedButton = await driver.findElement(By.id('proceedButton'))
   await $.scrollElementIntoView(driver, proceedButton)
