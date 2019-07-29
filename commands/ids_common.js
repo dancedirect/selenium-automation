@@ -137,7 +137,7 @@ const getRandomProductVariant = async (driver, baseUrl, productUrl) => {
       } catch(err) {
       }
     } else if (stockQtyElem) {
-      stockQty = $.extractNumberFromText(stockQty)
+      stockQty = $.extractNumberFromText(await stockQtyElem.getText())
     }
 
     if (stockQty > 0) {
@@ -194,7 +194,7 @@ const addProductToCart = async (driver, baseUrl, product) => {
       throw new Error('Product not in stock. "qty_0" element not found.')
     }
   } else if (stockQtyElem) {
-    stockQty = $.extractNumberFromText(stockQtyElem)
+    stockQty = $.extractNumberFromText(await stockQtyElem.getText())
 
     try {
       qtyElem = await addToCartForm.findElement(By.id('qty'))

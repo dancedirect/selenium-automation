@@ -77,7 +77,7 @@ const run = async (argv) => {
       if (productsAdded > 0) {
         console.log('Starting checkout.')
         const orderNumber = await checkout(driver, baseUrl, order, paymentCheckout)
-        console.log('Confirmation #:', orderNumber)
+        console.log('Confirmation #:', $.logInfo(orderNumber))
         console.log('Checkout completed.')
       } else {
         console.log(`Checkout could not be completed because the cart was empty.`)
