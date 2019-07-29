@@ -228,14 +228,24 @@ const fillCheckoutAddressForm = async (driver, addressForm, address) => {
   await addressForm.findElement(By.name('city')).clear()
   await addressForm.findElement(By.name('city')).sendKeys(address.city)
 
-  const region = await addressForm.findElement(By.name('region'))
-  const regionCssClassName = await region.getAttribute('class')
-  if (regionCssClassName.indexOf('select') > -1) {
+  let region
+
+  try {
+    region = await addressForm.findElement(By.name('region'))
+    const regionIsDisplayed = await region.isDisplayed()
+    if (!regionIsDisplayed) {
+      region = undefined
+    }
+  } catch (err) {
+  }
+
+  if (!region) {
+    region = await addressForm.findElement(By.name('region_id'))
     await $.scrollElementIntoView(driver, region)
-    await $.selectByVisibleValue(region, address.region)
+    await $.selectByVisibleText(region, address.region)
   } else {
-    await region.clear()
-    await region.sendKeys(address.region)
+    await addressForm.findElement(By.name('region')).clear()
+    await addressForm.findElement(By.name('region')).sendKeys(address.region)
   }
 
   await addressForm.findElement(By.name('postcode')).clear()
@@ -475,10 +485,11 @@ const getRandomCategoryProductUrl = async (driver, baseUrl, categoryUrl, getRand
   return productUrl
 }
 
-const createOrder = (products) => {
+const createOrder = (products, targetCountry) => {
+  const address = config.getAddress(targetCountry)
   const order = {
-    billingAddress: {...config.env.billingAddress},
-    shippingAddress: {...config.env.shippingAddress},
+    billingAddress: {...address},
+    shippingAddress: {...address},
     payment: {...config.env.ccPayment},
     products: [...products],
   }

@@ -1,6 +1,6 @@
 const _ = require('lodash')
 
-const billingAddress = {
+const ukAddress = {
     name: 'John Doe',
     firstName: 'John',
     lastName: 'Doe',
@@ -13,17 +13,43 @@ const billingAddress = {
     phoneNumber: '077 5164 4168',
 }
 
-const shippingAddress = {
+const deAddress = {
     name: 'John Doe',
     firstName: 'John',
     lastName: 'Doe',
     company: 'DD',
-    address: '45 Ermin Street',
-    city: 'WYTHALL',
-    region: '',
-    postalCode: 'B47 4QX',
-    country: 'GB',
+    address: 'Fugger Strasse 17',
+    city: 'Potsdam',
+    region: 'Brandenburg',
+    postalCode: '14432',
+    country: 'DE',
     phoneNumber: '077 5164 4168',
+}
+
+const esAddress = {
+    name: 'John Doe',
+    firstName: 'John',
+    lastName: 'Doe',
+    company: 'DD',
+    address: 'San Andrés 23',
+    city: 'Alaraz',
+    region: 'Salamanca',
+    postalCode: '37312',
+    country: 'ES',
+    phoneNumber: '635 265 886',
+}
+
+const itAddress = {
+    name: 'John Doe',
+    firstName: 'John',
+    lastName: 'Doe',
+    company: 'DD',
+    address: 'Piazzetta Concordia 90',
+    city: 'Scipione',
+    region: 'Parma',
+    postalCode: '43039',
+    country: 'IT',
+    phoneNumber: '0317 6591470',
 }
 
 const ccPayment = {
@@ -80,8 +106,8 @@ const config = {
         'browserstack.key': process.env.BROWSERSTACK_ACCESS_KEY,
         'name': 'Automated order',
     },
-    billingAddress,
-    shippingAddress,
+    billingAddress: {...ukAddress},
+    shippingAddress: {...ukAddress},
     ccPayment,
     paypalPayment,
     dd: {
@@ -210,17 +236,42 @@ const config = {
     },
 }
 
+const getAddress = (targetCountry) => {
+    let address
+    switch(targetCountry) {
+        case 'de':
+            address = {...deAddress}
+            break
+        case 'es':
+            address = {...esAddress}
+            break
+        case 'it':
+            address = {...itAddress}
+            break
+        default:
+            address = {...ukAddress}
+            break
+    }
+
+    return address
+}
+
 const getSiteConfig = (targetSite, targetCountry) => {
     const siteConfig = _.get(config, `${targetSite}.${config.environment}.${targetCountry}`)
     if (!siteConfig) {
         throw new Error(`Site ${config.environment} ${targetSite}-${targetCountry} is not supported.`)
     }
 
+    let address = getAddress(targetCountry)
+
     return {
         ...siteConfig,
-        ...getAccountLogin(targetSite, targetCountry)
+        ...getAccountLogin(targetSite, targetCountry),
+        billingAddress: {...address},
+        shippingAddress: {...address},
     }
 }
 
 exports.env = config
+exports.getAddress = getAddress
 exports.getSiteConfig = getSiteConfig

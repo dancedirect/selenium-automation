@@ -99,7 +99,7 @@ const run = async (argv) => {
       // Create order
       if (products.length > 0) {
         // Save the order
-        const order = createOrder(products)
+        const order = createOrder(products, targetCountry)
         await saveOrder($.getDataFile(ordersFile), targetSite, targetCountry, order)
         orders.push(order)
 
