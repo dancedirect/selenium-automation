@@ -69,7 +69,8 @@ const run = async (argv) => {
           await addProductToCart(driver, baseUrl, product)
           productsAdded++
         } catch (err) {
-          console.log('Product could not be added to cart:', err)
+          console.log($.logError('Product could not be added to cart:'))
+          console.log($.logError(err))
         }
       })
 
@@ -80,7 +81,7 @@ const run = async (argv) => {
         console.log('Confirmation #:', $.logInfo(orderNumber))
         console.log('Checkout completed.')
       } else {
-        console.log(`Checkout could not be completed because the cart was empty.`)
+        console.log($.logError('Checkout could not be completed because the cart was empty.'))
       }
 
       // Force login
