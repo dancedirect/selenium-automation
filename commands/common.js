@@ -228,8 +228,15 @@ const fillCheckoutAddressForm = async (driver, addressForm, address) => {
   await addressForm.findElement(By.name('city')).clear()
   await addressForm.findElement(By.name('city')).sendKeys(address.city)
 
-  await addressForm.findElement(By.name('region')).clear()
-  await addressForm.findElement(By.name('region')).sendKeys(address.region)
+  const region = await addressForm.findElement(By.name('region'))
+  const regionCssClassName = await region.getAttribute('class')
+  if (regionCssClassName.indexOf('select') > -1) {
+    await $.scrollElementIntoView(driver, region)
+    await $.selectByVisibleValue(region, address.region)
+  } else {
+    await region.clear()
+    await region.sendKeys(address.region)
+  }
 
   await addressForm.findElement(By.name('postcode')).clear()
   await addressForm.findElement(By.name('postcode')).sendKeys(address.postalCode)
@@ -260,14 +267,6 @@ const checkout = async (driver, baseUrl, order, paymentCheckout) => {
   // Go to checkout page
   await driver.get(`${baseUrl}/checkout/`)
 
-  // Accept cookies
-  try {
-    const cookieAllow = await driver.wait(until.elementLocated(By.id('btn-cookie-allow')), 10000, undefined, 1000)
-    await $.scrollElementIntoView(driver, cookieAllow)
-    await cookieAllow.click()
-  } catch (err) {
-  }
-
   // Wait for shipping section to load
   const shipping = await driver.wait(until.elementLocated(By.id('shipping')), 10000, undefined, 1000)
 
@@ -283,6 +282,14 @@ const checkout = async (driver, baseUrl, order, paymentCheckout) => {
       return false
     }
   }, 30000, undefined, 1000)
+
+  // Accept cookies
+  try {
+    const cookieAllow = await driver.wait(until.elementLocated(By.id('btn-cookie-allow')), 10000, undefined, 1000)
+    await $.scrollElementIntoView(driver, cookieAllow)
+    await cookieAllow.click()
+  } catch (err) {
+  }
 
   // Does the user have a shipping address
   let hasShippingAddresses = false
