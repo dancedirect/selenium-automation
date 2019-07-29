@@ -55,7 +55,7 @@ const run = async (argv) => {
 
     // Get orders
     
-    const maxOrderTries = 10
+    const maxOrderTries = maxOrders * 2
     let orderTries = 0
 
     while (orders.length < maxOrders && orderTries < maxOrderTries) {
@@ -83,7 +83,7 @@ const run = async (argv) => {
           try {
             const product = await getRandomProductVariant(driver, baseUrl, productUrl)
             if (product) {
-              console.log('Product variant added:', product)
+              console.log('Product variant added:')
               console.log(product)
               products.push(product)
             }
