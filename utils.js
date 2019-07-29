@@ -1,9 +1,9 @@
 const { By } = require('selenium-webdriver')
 const path = require('path')
 const config = require('./config')
-const clc = require('cli-color');
+const clc = require('cli-color')
 
-exports.getDataFile = filename => path.resolve(`./data/${filename}`);
+exports.getDataFile = filename => path.resolve(`./data/${filename}`)
 
 exports.logInfo = (msg) => {
     return clc.green(msg)
@@ -111,8 +111,8 @@ exports.selectedOption = async (select) => {
 }
 
 exports.scrollElementIntoView = async (driver, elem) => {
-    await driver.executeScript("arguments[0].scrollIntoView()", elem);
-    await driver.sleep(300);
+    await driver.executeScript("arguments[0].scrollIntoView()", elem)
+    await driver.sleep(300)
 }
 
 exports.getCartItemCount = async (elem) => {
@@ -165,7 +165,7 @@ exports.isPageLoaded = async (driver, expectedUrl, exactMatch = false) => {
     await driver.wait(async (newDriver) => {
         const currentUrl = await newDriver.getCurrentUrl()
         if (exactMatch) {
-            return currentUrl === expectedUrl
+            return exports.stripTrailingSlash(currentUrl) === exports.stripTrailingSlash(expectedUrl)
         }
 
         return currentUrl.indexOf(expectedUrl) > -1
@@ -173,3 +173,5 @@ exports.isPageLoaded = async (driver, expectedUrl, exactMatch = false) => {
 
     await exports.sleep(5000)
 }
+
+exports.stripTrailingSlash = str => str.endsWith('/') ? str.slice(0, -1) : str

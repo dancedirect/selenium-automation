@@ -61,7 +61,7 @@ const logout = async (driver, baseUrl) => {
   try {
     await $.isPageLoaded(driver, `${baseUrl}/`, true)
   } catch(err) {
-    throw new Error('Login page landing failed.')
+    throw new Error('Home page landing failed.')
   }
 }
 
