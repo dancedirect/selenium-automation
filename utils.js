@@ -95,6 +95,12 @@ exports.selectByVisibleText = async (select, textDesired) => {
     await optionFound.click()
 }
 
+exports.selectLastOption = async (select) => {
+    const options = await select.findElements(By.tagName('option'))
+    const lastOption = options[options.length - 1] 
+    await lastOption.click()
+}
+
 exports.selectedOption = async (select) => {
     const options = await select.findElements(By.tagName('option'))
     let optionFound

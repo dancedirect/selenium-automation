@@ -240,90 +240,6 @@ const addProductToCart = async (driver, baseUrl, product) => {
   }, 30000, undefined, 1000)
 }
 
-/**
- * Sagepay payment flow.
- */
-const sagepayPayment = async (driver, payment) => {
-  // Make sure we landed in the card selection page
-  try {
-    await $.isPageLoaded(driver, '/gateway/service/cardselection')
-  } catch (err) {
-    throw new Error('Sage Pay - Payment Selection landing failed.')
-  }
-  
-  let pageWrapper = await driver.findElement(By.id('pageWrapper'))
-  const forms = await pageWrapper.findElements(By.tagName('form'))
-
-  let paymentMethodForm
-  await $.asyncForEach(forms, async(form) => {
-    if (!paymentMethodForm) {
-      try {
-        const paymentMethod = await form.findElement(By.name('cardselected'))
-        const paymentMethodName = await paymentMethod.getAttribute('value')
-        if (paymentMethodName.toLowerCase() === payment.cardType.toLowerCase()) {
-          paymentMethodForm = form
-        }
-      } catch(err) {
-      }
-    }
-  })
-
-  const paymentMethodLink = await paymentMethodForm.findElement(By.tagName('a'))
-  await $.scrollElementIntoView(driver, paymentMethodLink)
-  await paymentMethodLink.click()
-
-  // Make sure we landed in the card details page
-  try {
-    await $.isPageLoaded(driver, '/gateway/service/carddetails')
-  } catch (err) {
-    throw new Error('Sage Pay - Card Details landing failed.')
-  }
-
-  pageWrapper = await driver.findElement(By.id('pageWrapper'))
-  const ccForm = await pageWrapper.findElement(By.name('carddetails'))
-
-  await ccForm.findElement(By.name('cardnumber')).clear()
-  await ccForm.findElement(By.name('cardnumber')).sendKeys(payment.card)
-
-  await ccForm.findElement(By.name('cardfirstnames')).clear()
-  await ccForm.findElement(By.name('cardfirstnames')).sendKeys(payment.firstName)
-
-  await ccForm.findElement(By.name('cardsurname')).clear()
-  await ccForm.findElement(By.name('cardsurname')).sendKeys(payment.lastName)
-
-  const expMonth = await ccForm.findElement(By.name('expirymonth'))
-  await $.selectByVisibleText(expMonth, payment.month)
-
-  const expYear = await ccForm.findElement(By.name('expiryyear'))
-  await $.selectByVisibleText(expYear, payment.year)
-
-  await ccForm.findElement(By.name('securitycode')).clear()
-  await ccForm.findElement(By.name('securitycode')).sendKeys(payment.cvc)
-
-  let proceedButton = await driver.findElement(By.id('proceedButton'))
-  await $.scrollElementIntoView(driver, proceedButton)
-  await proceedButton.click()
-
-  // Wait until the confirmation page is loaded
-  try {
-    await $.isPageLoaded(driver, '/gateway/service/cardconfirmation')
-  } catch(err) {
-    throw new Error('Sage Pay - Order Summary landing failed.')
-  }
-
-  proceedButton = await driver.findElement(By.id('proceedButton'))
-  await $.scrollElementIntoView(driver, proceedButton)
-  await proceedButton.click()
-}
-
-const paymentCheckout = async(driver, payment) => {
-  if (payment.type.toLowerCase() !== 'sagepay') {
-    throw new Error(`"${payment.type}" not supported.`)
-  }
-
-  await sagepayPayment(driver, payment)
-}
-
 exports.productAttrNameMap = productAttrNameMap
 exports.getProductAttrName = getProductAttrName
 exports.getProductStock = getProductStock
@@ -331,4 +247,3 @@ exports.getProductAttrOption = getProductAttrOption
 exports.getRandomProductPageNumber = getRandomProductPageNumber
 exports.getRandomProductVariant = getRandomProductVariant
 exports.addProductToCart = addProductToCart
-exports.paymentCheckout = paymentCheckout

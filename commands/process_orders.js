@@ -24,7 +24,7 @@ const run = async (argv) => {
   }
 
   // Get common stuff
-  const { addProductToCart, paymentCheckout } = require(`./${targetSite}_common`)
+  const { addProductToCart } = require(`./${targetSite}_common`)
 
   // Get site config
   const siteConfig = config.getSiteConfig(targetSite, targetCountry)
@@ -77,7 +77,7 @@ const run = async (argv) => {
       // Go to checkout
       if (productsAdded > 0) {
         console.log('Starting checkout.')
-        const orderNumber = await checkout(driver, baseUrl, order, paymentCheckout)
+        const orderNumber = await checkout(driver, baseUrl, order)
         console.log('Confirmation #:', $.logInfo(orderNumber))
         console.log('Checkout completed.')
       } else {

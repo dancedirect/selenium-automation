@@ -145,7 +145,81 @@ const emptyCart = async (driver, baseUrl) => {
   }
 }
 
-const sagepayCheckout = async(driver, billingAddress) => {
+/**
+ * Sagepay payment flow
+ */
+const sagepayPayment = async (driver, payment) => {
+  // Sagepay payment selection
+  try {
+    await $.isPageLoaded(driver, '/gateway/service/cardselection')
+  } catch(err) {
+    throw new Error('Sage Pay - Payment Selection landing failed.')
+  }
+
+  // Wait for the payment list to load
+  const paymentMethods = await driver.wait(until.elementLocated(By.css('.payment-method-list')), 30000, undefined, 1000)
+  const paymentMethodsList = await paymentMethods.findElements(By.css('.payment-method-list__item'))
+  let paymentMethod
+
+  // Click on the first payment method
+  await $.asyncForEach(paymentMethodsList, async (paymentMethodItem) => {
+    let paymentMethodName = await paymentMethodItem.findElement(By.css('.payment-method__name'))
+    paymentMethodName = await paymentMethodName.getText()
+    if (paymentMethodName.toLowerCase() === payment.cardType.toLowerCase()) {
+      paymentMethod = paymentMethodItem
+    }
+  })
+
+  if (!paymentMethod) {
+    throw new Error('Payment method not found.')
+  }
+
+  await paymentMethod.click()
+
+  // Sagepay payment card details
+  try {
+    await $.isPageLoaded(driver, '/gateway/service/carddetails')
+  } catch(err) {
+    throw new Error('Sage Pay - Card Details landing failed.')
+  }
+
+  // Fill in and submit the credit card form
+  const ccForm = await driver.wait(until.elementLocated(By.css('#main > div > form')), 10000, undefined, 1000)
+
+  await ccForm.findElement(By.name('cardholder')).clear()
+  await ccForm.findElement(By.name('cardholder')).sendKeys(payment.name)
+
+  await ccForm.findElement(By.name('cardnumber')).clear()
+  await ccForm.findElement(By.name('cardnumber')).sendKeys(payment.card)
+
+  await ccForm.findElement(By.name('expirymonth')).clear()
+  await ccForm.findElement(By.name('expirymonth')).sendKeys(payment.month)
+
+  await ccForm.findElement(By.name('expiryyear')).clear()
+  await ccForm.findElement(By.name('expiryyear')).sendKeys(payment.year)
+
+  await ccForm.findElement(By.name('securitycode')).clear()
+  await ccForm.findElement(By.name('securitycode')).sendKeys(payment.cvc)
+
+  const submitCcForm = await ccForm.findElement(By.name('action'))
+  await $.scrollElementIntoView(driver, submitCcForm)
+  await submitCcForm.click()
+
+  // Sagepay payment order summary
+  try {
+    await $.isPageLoaded(driver, '/gateway/service/cardconfirmation')
+  } catch(err) {
+    throw new Error('Sage Pay - Order Summary landing failed.')
+  }
+
+  const ccConfirmationForm = await driver.wait(until.elementLocated(By.css('#main > form')), 10000, undefined, 1000)
+
+  const submitCcConfirmationForm = await ccConfirmationForm.findElement(By.name('action'))
+  await $.scrollElementIntoView(driver, submitCcConfirmationForm)
+  await submitCcConfirmationForm.click()
+}
+
+const sagepayCheckout = async(driver, billingAddress, payment) => {
   // Select Sagepay
   const sagepayMethod = await driver.findElement(By.id('sagepaysuiteform'))
   await sagepayMethod.click()
@@ -166,7 +240,7 @@ const sagepayCheckout = async(driver, billingAddress) => {
     }
 
     if (billingAddressSelect) {
-      await $.selectByVisibleText(billingAddressSelect, 'New Address')
+      await $.selectLastOption(billingAddressSelect)
       await $.sleep(1000)
     }
 
@@ -201,6 +275,8 @@ const sagepayCheckout = async(driver, billingAddress) => {
   }, 30000, undefined, 1000)
 
   await checkoutButton.click()
+
+  await sagepayPayment(driver, payment)
 }
 
 /**
@@ -265,7 +341,7 @@ const fillCheckoutAddressForm = async (driver, addressForm, address) => {
 /**
  * Places the order
  */
-const checkout = async (driver, baseUrl, order, paymentCheckout) => {
+const checkout = async (driver, baseUrl, order) => {
   const { shippingAddress, billingAddress } = order
   let { payment } = order
   if (!payment) {
@@ -385,8 +461,7 @@ const checkout = async (driver, baseUrl, order, paymentCheckout) => {
     throw new Error(`"${payment.type}" not supported.`)
   }
 
-  await sagepayCheckout(driver, billingAddress)
-  await paymentCheckout(driver, payment, shippingAddress, billingAddress)
+  await sagepayCheckout(driver, billingAddress, payment)
 
   // Wait until the success page is loaded
   await driver.wait(async (newDriver) => {
@@ -551,7 +626,6 @@ exports.login = login
 exports.logout = logout
 exports.emptyCart = emptyCart
 exports.checkout = checkout
-exports.fillCheckoutAddressForm = fillCheckoutAddressForm
 exports.getCategoryUrls = getCategoryUrls
 exports.getRandomCategoryProductUrl = getRandomCategoryProductUrl
 exports.createOrder = createOrder
