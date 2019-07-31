@@ -30,9 +30,7 @@ const login = async (driver, baseUrl, httpAuth, accountEmail, accountPassword) =
   }
 
   // Go to login page and login
-  const loginLink = await driver.findElement(By.css('body > .page-wrapper > .page-header > .header  .authorization-link > a'))
-  const loginUrl = await loginLink.getAttribute('href')
-  await driver.navigate().to(loginUrl)
+  await driver.navigate().to(`${baseUrl}/customer/account/login/`)
 
   try {
     await $.isPageLoaded(driver, '/customer/account/login/')
@@ -227,43 +225,49 @@ const sagepayCheckout = async(driver, billingAddress, payment) => {
   // Submit payment form
   const activePaymentMethod = await driver.findElement(By.css('.payment-method._active'))
   if (billingAddress) {
-    const enterBillingAddress = await activePaymentMethod.findElement(By.name('billing-address-same-as-shipping'))
-    await enterBillingAddress.click()
-
-    await $.sleep(2000)
-
-    // Wait until addresses dropdown loads
-    let billingAddressSelect
+    let enterBillingAddress
     try {
-      billingAddressSelect = await activePaymentMethod.findElement(By.name('billing_address_id'))
+      enterBillingAddress = await activePaymentMethod.findElement(By.name('billing-address-same-as-shipping'))
     } catch (err) {
     }
 
-    if (billingAddressSelect) {
-      await $.selectLastOption(billingAddressSelect)
-      await $.sleep(1000)
+    if (enterBillingAddress) {
+      await enterBillingAddress.click()
+      await $.sleep(2000)
+
+      // Wait until addresses dropdown loads
+      let billingAddressSelect
+      try {
+        billingAddressSelect = await activePaymentMethod.findElement(By.name('billing_address_id'))
+      } catch (err) {
+      }
+  
+      if (billingAddressSelect) {
+        await $.selectLastOption(billingAddressSelect)
+        await $.sleep(1000)
+      }
+  
+      // Wait until the billing address form loads
+      let billingAddressForm
+      await driver.wait(async () => {
+        billingAddressForm = await activePaymentMethod.findElement(By.css('.billing-address-form > form'))
+        const billingAddressVisible = await billingAddressForm.isDisplayed()
+        return billingAddressVisible
+      }, 30000, undefined, 1000)
+  
+      // TODO: fix this check there are no multiple elements
+      await fillCheckoutAddressForm(driver, billingAddressForm, billingAddress)
+  
+      // Submit the new billing address form
+      let saveBillingAddress
+      await driver.wait(async () => {
+        saveBillingAddress = await activePaymentMethod.findElement(By.css('.payment-method-billing-address .action.action-update'))
+        const saveBillingAddressVisible = await saveBillingAddress.isDisplayed()
+        return saveBillingAddressVisible
+      }, 30000, undefined, 1000)
+  
+      await saveBillingAddress.click()
     }
-
-    // Wait until the billing address form loads
-    let billingAddressForm
-    await driver.wait(async () => {
-      billingAddressForm = await activePaymentMethod.findElement(By.css('.billing-address-form > form'))
-      const billingAddressVisible = await billingAddressForm.isDisplayed()
-      return billingAddressVisible
-    }, 30000, undefined, 1000)
-
-    // TODO: fix this check there are no multiple elements
-    await fillCheckoutAddressForm(driver, billingAddressForm, billingAddress)
-
-    // Submit the new billing address form
-    let saveBillingAddress
-    await driver.wait(async () => {
-      saveBillingAddress = await activePaymentMethod.findElement(By.css('.payment-method-billing-address .action.action-update'))
-      const saveBillingAddressVisible = await saveBillingAddress.isDisplayed()
-      return saveBillingAddressVisible
-    }, 30000, undefined, 1000)
-
-    await saveBillingAddress.click()
   }
 
   // Wait until checkout button is enabled

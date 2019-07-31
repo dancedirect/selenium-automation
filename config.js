@@ -59,7 +59,7 @@ const frAddress = {
     company: 'DD',
     address: '53  rue des Dunes',
     city: 'SAINT-MALO',
-    region: 'Bretagne',
+    region: '',
     postalCode: '35400',
     country: 'FR',
     phoneNumber: '02.27.81.91315',
