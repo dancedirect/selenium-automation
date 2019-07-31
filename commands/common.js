@@ -319,13 +319,15 @@ const fillCheckoutAddressForm = async (driver, addressForm, address) => {
   } catch (err) {
   }
 
-  if (!region) {
-    region = await addressForm.findElement(By.name('region_id'))
-    await $.scrollElementIntoView(driver, region)
-    await $.selectByVisibleText(region, address.region)
-  } else {
-    await addressForm.findElement(By.name('region')).clear()
-    await addressForm.findElement(By.name('region')).sendKeys(address.region)
+  if (!_.isEmpty(address.region)) {
+    if (!region) {
+      region = await addressForm.findElement(By.name('region_id'))
+      await $.scrollElementIntoView(driver, region)
+      await $.selectByVisibleText(region, address.region)
+    } else {
+      await addressForm.findElement(By.name('region')).clear()
+      await addressForm.findElement(By.name('region')).sendKeys(address.region)
+    }
   }
 
   await addressForm.findElement(By.name('postcode')).clear()
