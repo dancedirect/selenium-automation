@@ -52,6 +52,19 @@ const itAddress = {
     phoneNumber: '0317 6591470',
 }
 
+const frAddress = {
+    name: 'John Doe',
+    firstName: 'John',
+    lastName: 'Doe',
+    company: 'DD',
+    address: '53  rue des Dunes',
+    city: 'SAINT-MALO',
+    region: 'Bretagne',
+    postalCode: '35400',
+    country: 'FR',
+    phoneNumber: '02.27.81.91315',
+}
+
 const ccPayment = {
     type: 'Sagepay',
     cardType: 'MasterCard',
@@ -247,6 +260,9 @@ const getAddress = (targetCountry) => {
             break
         case 'it':
             address = {...itAddress}
+            break
+        case 'fr':
+            address = {...frAddress}
             break
         default:
             address = {...ukAddress}

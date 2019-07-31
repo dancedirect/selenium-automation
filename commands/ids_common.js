@@ -28,17 +28,17 @@ const getProductAttrOption = async(select, textDesired) => {
   const options = await select.findElements(By.tagName('option'))
   let optionFound
   await $.asyncForEach(options, async(option) => {
-      if (optionFound === undefined) {
-          let value = await option.getText()
-          value = value.replace(/ *\([^)]*\) */g, '').toLowerCase()
-          if (value === textDesired.toLowerCase()) {
-              optionFound = option
-          }
-      }
+    if (optionFound === undefined) {
+      let value = await option.getText()
+      value = value.replace(/ *\([^)]*\) */g, '').toLowerCase()
+      if (value === textDesired.toLowerCase()) {
+        optionFound = option
+        }
+    }
   })
 
   if (optionFound === undefined) {
-      throw new Error(`Option "${textDesired}" not found.`)
+    throw new Error(`Option "${textDesired}" not found.`)
   }
 
   return optionFound

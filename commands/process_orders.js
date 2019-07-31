@@ -31,12 +31,12 @@ const run = async (argv) => {
   const { url: baseUrl, accountEmail, accountPassword } = siteConfig
 
   // Get all the orders for the site and country
-  const orders = await getOrders($.getDataFile(ordersFile), targetSite, targetCountry)
+  const orders = await getOrders($.getDataFile(`${targetCountry}_${ordersFile}`), targetSite, targetCountry)
   if (orders.length < 1) {
     throw new Error(`Site ${targetSite}-${targetCountry} doesn't have any orders to process.`)
   }
 
-  console.log('Processing orders from:', $.getDataFile(ordersFile))
+  console.log('Processing orders from:', $.getDataFile(`${targetCountry}_${ordersFile}`))
 
   driver = new Builder()
     .usingServer(config.env.browserstackServer)

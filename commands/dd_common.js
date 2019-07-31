@@ -30,13 +30,13 @@ const getProductAttrOption = async(select, textDesired) => {
  * Gets a random page number for a product page.
  */
 const getRandomProductPageNumber = async(driver, pageSize) => {
-    // Get the total number of items
-    let totalItems = await driver.findElement(By.css('body > .page-wrapper > .category-header .size'))
-    totalItems = await totalItems.getText()
-    totalItems = $.extractNumberFromText(totalItems)
+  // Get the total number of items
+  let totalItems = await driver.findElement(By.css('body > .page-wrapper > .category-header .size'))
+  totalItems = await totalItems.getText()
+  totalItems = $.extractNumberFromText(totalItems)
   
-    const totalPages = Math.ceil(totalItems / pageSize)
-    return totalPages > 1 ? $.getRandomNumber(1, totalPages) : totalPages
+  const totalPages = Math.ceil(totalItems / pageSize)
+  return totalPages > 1 ? $.getRandomNumber(1, totalPages) : totalPages
 }
 
 /**

@@ -42,10 +42,10 @@ const run = async (argv) => {
     let orders = []
   
     if (mode === 'a') {
-      orders = await getOrders($.getDataFile(ordersFile), targetSite, targetCountry)
+      orders = await getOrders($.getDataFile(`${targetCountry}_${ordersFile}`), targetSite, targetCountry)
     } else {
        // Empty the existing orders
-      await saveOrders($.getDataFile(ordersFile), targetSite, targetCountry, [])
+      await saveOrders($.getDataFile(`${targetCountry}_${ordersFile}`), targetSite, targetCountry, [])
     }
 
     await login(driver, baseUrl, config.env.httpAuthRequired, accountEmail, accountPassword)
@@ -100,7 +100,7 @@ const run = async (argv) => {
       if (products.length > 0) {
         // Save the order
         const order = createOrder(products, targetCountry)
-        await saveOrder($.getDataFile(ordersFile), targetSite, targetCountry, order)
+        await saveOrder($.getDataFile(`${targetCountry}_${ordersFile}`), targetSite, targetCountry, order)
         orders.push(order)
 
         console.log(`Finished building order #${orderNumber}`)
