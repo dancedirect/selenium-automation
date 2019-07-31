@@ -56,6 +56,7 @@ const login = async (driver, baseUrl, httpAuth, accountEmail, accountPassword) =
  */
 const logout = async (driver, baseUrl) => {
   await driver.get(`${baseUrl}/customer/account/logout/`)
+  await $.sleep(10000)
   try {
     await $.isPageLoaded(driver, `${baseUrl}/`, true)
   } catch(err) {
